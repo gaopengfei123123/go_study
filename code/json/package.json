@@ -1,0 +1,16 @@
+{
+  "name": "hexo-site",
+  "version": "0.0.0",
+  "private": true,
+  "author": "GPF <5173180@qq.com>",
+  "description": "A Vue.js project",
+  "dependencies": {
+    "vue": "^2.2.6",
+    "vue-router": "^2.3.1"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not ie <= 8"
+  ]
+}
