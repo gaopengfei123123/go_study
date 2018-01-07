@@ -1,4 +1,5 @@
 .DS_Store
 src/github.com/*
+src/sourcegraph.com/*
 bin/*
 pkg/*
