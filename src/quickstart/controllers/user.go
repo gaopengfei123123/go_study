@@ -29,3 +29,12 @@ func (c *UserController) Info() {
 	c.Data["json"] = data
 	c.ServeJSON()
 }
+
+// @router /user/login [post]
+func (c *UserController) Login() {
+	username := c.GetString("username")
+	password := c.GetString("password")
+
+	c.Data["json"] = username + password
+	c.ServeJSON()
+}

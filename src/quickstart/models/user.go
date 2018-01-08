@@ -7,7 +7,9 @@ import (
 // Model Struct
 type User struct {
     Id   int
-    Name string `orm:"size(100)"`
+	Name string `orm:"size(100)"`
+	IsError bool
+	Error string
 }
 
 func init(){
@@ -30,5 +32,16 @@ func (this *User) GetOne() (User){
 		// fmt.Println
 	}
 
+	return user
+}
+
+/*
+Login 用户登录
+@username
+@password
+*/
+func (c *User) Login(username string,password string) (User){
+
+	user := User{Id:c.Id,Name:c.Name,IsError:false,Error:""}
 	return user
 }
