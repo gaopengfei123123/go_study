@@ -1,38 +1,43 @@
 package models
 import (
-	"fmt"
     "github.com/astaxie/beego/orm"
 	_ "github.com/go-sql-driver/mysql" // import your used driver
 )
-// Model Struct
-type User struct {
-    Id   int
+
+type user struct {
+	Id   int	
 	Name string `orm:"size(100)"`
+	Password string
+}
+
+// UserModal 用户表模型
+type UserModal struct {
+    user
 	IsError bool
 	Error string
 }
 
+
 func init(){
-	orm.RegisterModel(new(User))
+	orm.RegisterModel(new(user))
 }
 
-func (this *User) GetOne() (User){
+// GetOne 获取一条用户信息
+func (th *UserModal) GetOne() (*UserModal){
 	db := orm.NewOrm()
 	db.Using("default")
 
-	user := User{Id:this.Id}
-
-
-	err := db.Read(&user)
+	u := user{Id:th.Id}
+	err := db.Read(&u)
 	if err == orm.ErrNoRows {
-		fmt.Println("no rows")
+		th.Error = "no rows"
+		th.IsError = true
 	} else if err == orm.ErrMissPK {
-		fmt.Println("no primary key")
-	} else {
-		// fmt.Println
-	}
+		th.IsError = true
+	} 
+	th.user = u
 
-	return user
+	return th
 }
 
 /*
@@ -40,8 +45,9 @@ Login 用户登录
 @username
 @password
 */
-func (c *User) Login(username string,password string) (User){
+func (th *UserModal) Login(username string,password string) (*UserModal){
 
-	user := User{Id:c.Id,Name:c.Name,IsError:false,Error:""}
-	return user
+	u := user{Id:th.Id,Name:th.Name}
+	th.user = u
+	return th
 }
