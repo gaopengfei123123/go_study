@@ -30,9 +30,6 @@ type UserInfo struct{
 // Info 获取用户的 头像,名称,权限
 // @router /user/info [post]
 func (c *UserController) Info() {
-	// roles := []string{"admin"}
-	// token := "123sdfqs"
-	// info := UserInfo{"http://blog-image.onlyoneip.com/6f333b29.jpg","GPF",roles,token}
 	user := models.UserModal{}
 	user.Id = 1
 	data := user.GetOne("Id")
@@ -63,14 +60,7 @@ func (c *UserController) Login() {
 	}
 
 	// check form format
-	var errorList []string
-	if m, _ := regexp.MatchString("^[a-zA-z0-9!#$]{6,20}$",form.Username); !m{
-		errorList = append(errorList, "username format error!")
-	}
-	if m, _ := regexp.MatchString("^[a-zA-z0-9!#$]{6,20}$",form.Password); !m{
-		errorList = append(errorList, "password format error!")
-	}
-
+	errorList := form.checkLoginForm()
 	if len(errorList) > 0 {
 		returnError(c,400,errorList)
 		return
@@ -92,8 +82,15 @@ func (c *UserController) Login() {
 	c.ServeJSON()
 }
 
-func checkPassword(form loginForm, modal models.UserModal) (bool) {
-	return form.Password == modal.Password
+func (c *loginForm) checkLoginForm() []string {
+	var errorList []string
+	if m, _ := regexp.MatchString("^[a-zA-z0-9!#$]{6,20}$",c.Username); !m{
+		errorList = append(errorList, "username format error!")
+	}
+	if m, _ := regexp.MatchString("^[a-zA-z0-9!#$]{6,20}$",c.Password); !m{
+		errorList = append(errorList, "password format error!")
+	}
+	return errorList
 }
 
 func returnError(c *UserController,code int,data Any){
