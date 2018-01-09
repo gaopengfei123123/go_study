@@ -4,6 +4,7 @@ import (
 	"github.com/astaxie/beego"
 	"quickstart/models"
 	"regexp"
+	"fmt"
 )
 
 // UserController 有关于 User 的各种秦操作
@@ -13,7 +14,7 @@ type UserController struct {
 
 type Any interface{}
 
-type responseBody struct {
+type ResponseBody struct {
 	Code int	`json:"code"`
 	Data Any	`json:"data"`
 }
@@ -34,7 +35,7 @@ func (c *UserController) Info() {
 	// info := UserInfo{"http://blog-image.onlyoneip.com/6f333b29.jpg","GPF",roles,token}
 	user := models.UserModal{}
 	user.Id = 1
-	data := user.GetOne()
+	data := user.GetOne("Id")
 	c.Data["json"] = data
 	c.ServeJSON()
 }
@@ -44,10 +45,12 @@ type loginForm struct {
 	Username string `form:"username"`
 	Password string `form:"password"`
 }
+
+// Login 登录操作
 // @router /user/login [post]
 func (c *UserController) Login() {
 	form := loginForm{}
-	var resp responseBody
+	var resp ResponseBody
 
 	resp.Code = 200
 	resp.Data = "nothing"
@@ -67,21 +70,34 @@ func (c *UserController) Login() {
 	if m, _ := regexp.MatchString("^[a-zA-z0-9!#$]{6,20}$",form.Password); !m{
 		errorList = append(errorList, "password format error!")
 	}
+
+	if len(errorList) > 0 {
+		returnError(c,400,errorList)
+		return
+	} 
 	
 	// check account
 	user := models.UserModal{}
 	user.Name = form.Username
-	data := user.GetOne()
-	if data.Error != "" {
-		errorList = append(errorList,data.Error)
+	user.Password = form.Password
+	fmt.Println(user)
+	data := user.Login()
+	if data.IsError {
+		returnError(c,400,data.Error)
+		return
 	}
-	resp.Data = data
-
-	if len(errorList) > 0 {
-		resp.Code = 400
-		resp.Data = errorList
-	} 
+	resp.Data = user
 
 	c.Data["json"] = resp
+	c.ServeJSON()
+}
+
+func checkPassword(form loginForm, modal models.UserModal) (bool) {
+	return form.Password == modal.Password
+}
+
+func returnError(c *UserController,code int,data Any){
+	body := ResponseBody{Code: code,Data: data}
+	c.Data["json"] = body
 	c.ServeJSON()
 }
