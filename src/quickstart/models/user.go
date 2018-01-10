@@ -1,5 +1,6 @@
 package models
 import (
+	// "fmt"
 	"encoding/hex"
 	"crypto/sha256"
     "github.com/astaxie/beego/orm"
@@ -7,24 +8,37 @@ import (
 )
 
 const CONNECTION = "default"
+
+// Role 表结构
+type UserRoles struct {
+	Id int
+	Role string
+	Title string
+	Uid int
+}
+
 // User 表结构
 type User struct {
 	Id   int	
 	Name string `orm:"size(100)"`
 	Password string
 	Token string `orm:"size(64)"`
+	// UserRoles	[]*UserRoles `orm:"reverse(many)"`
 }
+
+
 
 // UserModal 用户表模型
 type UserModal struct {
     User
 	IsError bool
 	Error string
+	Ip string
 }
 
 
 func init(){
-	orm.RegisterModel(new(User))
+	orm.RegisterModel(new(User),new(UserRoles))
 }
 
 // GetOne 获取一条用户信息
@@ -32,8 +46,8 @@ func (th *UserModal) GetOne(column string) (*UserModal){
 	db := orm.NewOrm()
 	db.Using(CONNECTION)
 
-	
 	err := db.Read(&th.User,column)
+
 	if err == orm.ErrNoRows {
 		th.Error = "no rows"
 		th.IsError = true
@@ -63,9 +77,11 @@ func (th *UserModal) Login() (*UserModal){
 		th.Error = "error password or username"
 	}
 
-	
 	th.Token = th.generateHash()
-
+	if !th.flashToken() {
+		th.IsError = true
+		th.Error = "flash Token error"
+	}
 
 	return th
 }
@@ -75,8 +91,8 @@ func (th *UserModal) checkPassword(password string, user User) (bool) {
 }
 
 func (th *UserModal) generateHash() string {
-	var str string = th.Name + th.Password
-	var data []byte = []byte(str)
+	str := th.Name + th.Password + th.Ip
+	data := []byte(str)
 	hash := sha256.New()
 	hash.Write(data)
 	md := hash.Sum(nil)
@@ -86,5 +102,10 @@ func (th *UserModal) generateHash() string {
 func (th *UserModal) flashToken() bool {
 	db := orm.NewOrm()
 	db.Using(CONNECTION)
-	return false
+
+	if _, err := db.Update(&th.User,"Token"); err != nil {
+		return false
+	}
+
+	return true
 }

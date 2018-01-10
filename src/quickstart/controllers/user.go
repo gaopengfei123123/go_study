@@ -31,9 +31,11 @@ type UserInfo struct{
 // @router /user/info [post]
 func (c *UserController) Info() {
 	user := models.UserModal{}
-	user.Id = 1
+	user.Id = 3
 	data := user.GetOne("Id")
-	c.Data["json"] = data
+
+	resp := ResponseBody{Code:200,Data: data}
+	c.Data["json"] = resp
 	c.ServeJSON()
 }
 
@@ -70,6 +72,7 @@ func (c *UserController) Login() {
 	user := models.UserModal{}
 	user.Name = form.Username
 	user.Password = form.Password
+	user.Ip = c.Ctx.Input.IP()
 	fmt.Println(user)
 	data := user.Login()
 	if data.IsError {
