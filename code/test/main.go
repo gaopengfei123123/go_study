@@ -9,12 +9,12 @@ import (
 const CONNECTION = "default"
 
 // Role 表结构
-type UserRoles struct {
+type Role struct {
 	Id int
 	Role string
 	Title string
-    Uid int
-    User *User  `orm:"rel(fk)"`
+    // Uid int
+    // User *User  `orm:"rel(fk)"`
 }
 
 // User 表结构
@@ -23,7 +23,7 @@ type User struct {
 	Name string `orm:"size(100)"`
 	Password string
 	Token string `orm:"size(64)"`
-	UserRoles  []*UserRoles `orm:"reverse(many)"`
+	// UserRoles  []*UserRoles `orm:"reverse(many)"`
 }
 
 
@@ -40,26 +40,44 @@ func init(){
     orm.RegisterDriver("mysql", orm.DRMySQL)
     // set default database
     orm.RegisterDataBase("default", "mysql", "root:123123@tcp(127.0.0.1:3306)/go?charset=utf8", 30)
-	orm.RegisterModel(new(User),new(UserRoles))
+	orm.RegisterModel(new(User),new(Role))
 }
 
 func main() {
-    user := UserModal{}
-    user.User.Id = 3
-    data := user.GetOne("Id")
+    // user := UserModal{}
+    // user.User.Id = 3
+    // data := user.GetOne("Id")
 
-	fmt.Println("export result:",data)
+	// fmt.Println("export result:",data)
 	
 
-	fmt.Println("goruntime begin")
-	syncChan1 := make(chan struct{},1)
-	syncChan2 := make(chan struct{},2)
-	go receive(strChan,syncChan1,syncChan2)
-	go send(strChan,syncChan1,syncChan2)
-	<-syncChan1
-	<-syncChan2
-	fmt.Println("goruntime end")
+	// fmt.Println("goruntime begin")
+	// syncChan1 := make(chan struct{},1)
+	// syncChan2 := make(chan struct{},2)
+	// go receive(strChan,syncChan1,syncChan2)
+	// go send(strChan,syncChan1,syncChan2)
+	// <-syncChan1
+	// <-syncChan2
+	// fmt.Println("goruntime end")
 
+	userChan := make(chan *UserModal,2)
+	go getMany(userChan,1)
+	go getMany(userChan,3)
+	for elem := range userChan{
+		fmt.Println(elem)
+	}
+
+	close(userChan)
+	
+	
+}
+
+func getMany(userChan chan<- *UserModal,id int){
+	modal := UserModal{}
+	modal.User.Id = id
+	data := modal.GetOne("Id")
+	time.Sleep(time.Second * 5)
+	userChan <- data
 }
 
 var strChan = make(chan string,3)
@@ -83,7 +101,7 @@ func send (strChan chan<- string,syncChan1 chan<- struct{},syncChan2 chan<- stru
 		}
 	}
 	fmt.Println("wait 2 seconds.. [sender]")
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 5)
 	close(strChan)
 	syncChan2 <- struct{}{}
 
@@ -109,3 +127,4 @@ func (th *UserModal) GetOne(column string) (*UserModal){
 
 	return th
 }
+
