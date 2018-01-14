@@ -10,11 +10,11 @@ import (
 const CONNECTION = "default"
 
 // Role 表结构
-type UserRoles struct {
+type Role struct {
 	Id int
 	Role string
 	Title string
-	Uid int
+	// User  *User  `orm:"rel(fk)"`
 }
 
 // User 表结构
@@ -23,28 +23,35 @@ type User struct {
 	Name string `orm:"size(100)"`
 	Password string
 	Token string `orm:"size(64)"`
-	// UserRoles	[]*UserRoles `orm:"reverse(many)"`
+	Avatar string
+	// Roles	[]*Role `orm:"reverse(many)"`
 }
 
 
 
 // UserModal 用户表模型
 type UserModal struct {
-    User
+	User
+	Roles []Role
 	IsError bool
 	Error string
 	Ip string
+	Db orm.Ormer
 }
 
 
 func init(){
-	orm.RegisterModel(new(User),new(UserRoles))
+	orm.RegisterModel(new(User),new(Role))
 }
 
 // GetOne 获取一条用户信息
 func (th *UserModal) GetOne(column string) (*UserModal){
 	db := orm.NewOrm()
-	db.Using(CONNECTION)
+	// db.Using(CONNECTION)
+
+	if th.Db == nil {
+		th.Db = db
+	}
 
 	err := db.Read(&th.User,column)
 
@@ -56,6 +63,20 @@ func (th *UserModal) GetOne(column string) (*UserModal){
 	} 
 
 	return th
+}
+
+// GetRoles 获取用户权限
+func (th *UserModal) GetRoles() {
+	th.Error = "test 2333"
+	var roles []Role
+	_,err := th.Db.Raw("SELECT * FROM role WHERE user_id=?",th.User.Id).QueryRows(&roles)
+
+	if err == nil {
+		th.Roles = roles
+	} else {
+		th.IsError = true
+		th.Error = "no roles"
+	}
 }
 
 /*

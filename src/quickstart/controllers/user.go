@@ -33,8 +33,25 @@ func (c *UserController) Info() {
 	user := models.UserModal{}
 	user.Id = 3
 	data := user.GetOne("Id")
+	data.GetRoles()
+	// fmt.Println("log:",roles)
+	if data.IsError {
+		returnError(c,400,data.Error)
+		return
+	}
 
-	resp := ResponseBody{Code:200,Data: data}
+	var userInfo UserInfo
+	userInfo.Name = data.User.Name
+	userInfo.Avatar = data.User.Avatar
+	var roles []string
+	for _,item := range data.Roles {
+		roles = append(roles,item.Role)
+	}
+	userInfo.Roles = roles
+	userInfo.Token = data.User.Token
+
+
+	resp := ResponseBody{Code:200,Data: userInfo}
 	c.Data["json"] = resp
 	c.ServeJSON()
 }

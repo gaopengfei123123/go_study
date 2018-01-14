@@ -23,6 +23,7 @@ type User struct {
 	Name string `orm:"size(100)"`
 	Password string
 	Token string `orm:"size(64)"`
+	Role []Role
 	// UserRoles  []*UserRoles `orm:"reverse(many)"`
 }
 
@@ -128,3 +129,7 @@ func (th *UserModal) GetOne(column string) (*UserModal){
 	return th
 }
 
+
+func (th *UserModal) GetRoles() {
+	fmt.Println("get roles:",th)
+}
