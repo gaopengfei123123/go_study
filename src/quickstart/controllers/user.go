@@ -30,11 +30,13 @@ type UserInfo struct{
 // Info 获取用户的 头像,名称,权限
 // @router /user/info [post]
 func (c *UserController) Info() {
+	token := c.GetString("token")
+	
 	user := models.UserModal{}
-	user.Id = 3
-	data := user.GetOne("Id")
+	user.Token =token
+	data := user.GetOne("Token")
 	data.GetRoles()
-	// fmt.Println("log:",roles)
+
 	if data.IsError {
 		returnError(c,400,data.Error)
 		return
@@ -49,6 +51,8 @@ func (c *UserController) Info() {
 	}
 	userInfo.Roles = roles
 	userInfo.Token = data.User.Token
+
+	fmt.Println("log:",userInfo)
 
 
 	resp := ResponseBody{Code:200,Data: userInfo}
