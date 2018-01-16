@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"github.com/astaxie/beego"
+	// "github.com/astaxie/beego"
 	"quickstart/models"
 	"regexp"
 	"fmt"
@@ -9,11 +9,13 @@ import (
 
 // UserController 有关于 User 的各种秦操作
 type UserController struct {
-	beego.Controller
+	BaseController
 }
 
+// Any 定义一个空接口
 type Any interface{}
 
+// ResponseBody 数据的返回格式
 type ResponseBody struct {
 	Code int	`json:"code"`
 	Data Any	`json:"data"`
@@ -30,6 +32,7 @@ type UserInfo struct{
 // Info 获取用户的 头像,名称,权限
 // @router /user/info [post]
 func (c *UserController) Info() {
+	c.AllowCross()
 	token := c.GetString("token")
 	
 	user := models.UserModal{}
@@ -69,6 +72,7 @@ type loginForm struct {
 // Login 登录操作
 // @router /user/login [post]
 func (c *UserController) Login() {
+	c.AllowCross()
 	form := loginForm{}
 	var resp ResponseBody
 
@@ -94,13 +98,29 @@ func (c *UserController) Login() {
 	user.Name = form.Username
 	user.Password = form.Password
 	user.Ip = c.Ctx.Input.IP()
-	fmt.Println(user)
+
 	data := user.Login()
 	if data.IsError {
 		returnError(c,400,data.Error)
 		return
 	}
-	resp.Data = user
+	user.GetRoles()
+	var roles []string
+	if len(user.Roles) > 0 {
+		for _,item := range data.Roles {
+			roles = append(roles,item.Role)
+		}
+	}else{
+		roles = append(roles,"default")
+	}
+	
+
+	response := struct{
+		Token string `json:"token"`
+		Role []string `json:"role"`
+		Avatar string `json:"avatar"` 
+	}{user.Token,roles,user.Avatar}
+	resp.Data = response
 
 	c.Data["json"] = resp
 	c.ServeJSON()

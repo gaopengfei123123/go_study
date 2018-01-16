@@ -7,6 +7,7 @@ import (
 	_ "github.com/go-sql-driver/mysql" // import your used driver
 )
 
+// CONNECTION 默认链接库
 const CONNECTION = "default"
 
 // Role 表结构
@@ -14,7 +15,6 @@ type Role struct {
 	Id int
 	Role string
 	Title string
-	// User  *User  `orm:"rel(fk)"`
 }
 
 // User 表结构
@@ -24,7 +24,6 @@ type User struct {
 	Password string
 	Token string `orm:"size(64)"`
 	Avatar string
-	// Roles	[]*Role `orm:"reverse(many)"`
 }
 
 
@@ -67,7 +66,6 @@ func (th *UserModal) GetOne(column string) (*UserModal){
 
 // GetRoles 获取用户权限
 func (th *UserModal) GetRoles() {
-	th.Error = "test 2333"
 	var roles []Role
 	_,err := th.Db.Raw("SELECT * FROM role WHERE user_id=?",th.User.Id).QueryRows(&roles)
 
