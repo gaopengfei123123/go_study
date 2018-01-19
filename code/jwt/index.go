@@ -5,13 +5,18 @@ import (
 	"encoding/json"
 	"encoding/base64"
 	"crypto/sha256"
+	"crypto/hmac"
 	"encoding/hex"
+	"strings"
 )
+
+// SALT 密钥
+const SALT = "SECRET"
 
 // Header 消息头部
 type Header struct {
 	Alg string `json:"alg"`
-	Typ string `json:"JWT"`
+	Typ string `json:"typ"`
 }
 
 // PayLoad 负载
@@ -35,6 +40,12 @@ func main() {
 	jwt.PayLoad = PayLoad{"1234567890","John Doe",true}
 	result := jwt.encode("secret")
 	fmt.Println(result)
+
+	if jwt.decode(result) {
+		fmt.Println("data verify success")
+	} else {
+		fmt.Println("something was wrong")
+	}
 }
 
 func (jwt *JWT) encode(salt string) string {
@@ -46,15 +57,44 @@ func (jwt *JWT) encode(salt string) string {
 	checkError(err)
 	
 	format := headerString + "." + payloadString
-	formatB := []byte(format)
-	saltB := []byte(salt)
-	hash := sha256.New()
-	hash.Write(formatB)
-
-	md := hash.Sum(saltB)
-	signature := hex.EncodeToString(md)
+    signature := getHmacCode(format)
 
 	return format + "." + signature
+}
+
+func getHmacCode(s string) string {
+    h := hmac.New(sha256.New, []byte("secret"))
+	h.Write([]byte(s))
+	key := h.Sum(nil)
+    return hex.EncodeToString(key)
+}
+
+
+func (jwt *JWT) decode( code string) bool {
+
+	arr := strings.Split(code,".")
+	if len(arr) != 3 {
+		return false
+	}
+
+	// 验证签名是否正确
+	format := arr[0] + "." + arr[1]
+	signature := getHmacCode(format)
+	if signature != arr[2] {
+		return false
+	}
+
+
+	header, err := base64.StdEncoding.DecodeString(arr[0])
+	checkError(err)
+	payload, err := base64.StdEncoding.DecodeString(arr[1])
+	checkError(err)
+
+	
+	json.Unmarshal(header, &jwt.Header)
+	json.Unmarshal(payload,&jwt.PayLoad)
+
+	return true
 }
 
 func checkError(err error) {
