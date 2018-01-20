@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	// "fmt"
 	"encoding/json"
 	"encoding/base64"
 	"crypto/sha256"
@@ -33,22 +33,10 @@ type JWT struct {
 	Signature string `json:"signature"`
 }
 
-func main() {
-	fmt.Println("this will check jwt")
-	jwt := JWT{}
-	jwt.Header = Header{"HS256","JWT"}
-	jwt.PayLoad = PayLoad{"1234567890","John Doe",true}
-	result := jwt.encode("secret")
-	fmt.Println(result)
+func main(){}
 
-	if jwt.decode(result) {
-		fmt.Println("data verify success")
-	} else {
-		fmt.Println("something was wrong")
-	}
-}
-
-func (jwt *JWT) encode(salt string) string {
+// Encode 将 json 转成符合 JWT 标准的字符串
+func (jwt *JWT) Encode(salt string) string {
 	header, err := json.Marshal(jwt.Header)
 	checkError(err)
 	headerString := base64.StdEncoding.EncodeToString(header)
@@ -70,7 +58,8 @@ func getHmacCode(s string) string {
 }
 
 
-func (jwt *JWT) decode( code string) bool {
+// Decode 验证 jwt 签名是否正确,并将json内容解析出来
+func (jwt *JWT) Decode( code string) bool {
 
 	arr := strings.Split(code,".")
 	if len(arr) != 3 {
