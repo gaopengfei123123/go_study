@@ -24,6 +24,7 @@ type PayLoad struct {
 	Sub string `json:"sub"`
 	Name string `json:"name"`
 	Admin bool `json:"admin"`
+	// Expire int `json:"exp"`
 }
 
 // JWT 完整的本体
