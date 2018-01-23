@@ -1,5 +1,6 @@
 .DS_Store
 src/github.com/*
 src/sourcegraph.com/*
+src/gopcp.v2/*
 bin/*
 pkg/*
