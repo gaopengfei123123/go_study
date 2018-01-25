@@ -31,11 +31,30 @@ func doServerStuff(conn net.Conn) {
 	var buf []byte
 	var error error
 
+	// 类似 try catch 的结构
+	defer func() {
+		fmt.Println("recover painc")
+		err := recover();
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
+
 	for {
 		buf = make([]byte, 512)
 		_, error = conn.Read(buf)
+
+		if error != nil {
+			panic(error.Error())
+		}
+
 		checkError(error)
 		input := string(buf)
+
+		// 通过远程命令关闭监听进程
+		if strings.Contains(input, ": quit") {
+			panic("Client shutting down.")
+		}
 
 		// 通过远程命令关闭监听进程
 		if strings.Contains(input, ": SH") {
@@ -57,7 +76,7 @@ func doServerStuff(conn net.Conn) {
 
 func checkError(error error) {
 	if error != nil {
-		panic("Error: " + error.Error()) // terminate program
+		fmt.Println("Error: " + error.Error()) // terminate program
 	}
 }
 

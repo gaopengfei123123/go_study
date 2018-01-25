@@ -27,12 +27,18 @@ func main() {
 		fmt.Println("What to send to the server? Type Q to quit. Type SH to shutdown server.")
 		input, _ =  inputReader.ReadString('\n')
 		trimmedInput := strings.Trim(input,"\n")
+		// Q是直接退出
 		if trimmedInput == "Q" {
 			return 
 		} 
 
+		
 		_, error = conn.Write([]byte(trimmedClient + " says: " + trimmedInput))
 		checkError(error)
+		// 输入 SH 将 server 端和 client 都关闭
+		if trimmedInput == "SH" {
+			return 
+		} 
 	}
 
 }
