@@ -34,6 +34,7 @@ func main() {
     defer ticker.Stop()
     //新增一个10秒超时的上下文
     background := context.Background()
+    // 设置一个10秒倒计时的context,过期后默认执行
     ctx, _ := context.WithTimeout(background, 10*time.Second)
     //添加一个goroutine等待
     wg.Add(1)
