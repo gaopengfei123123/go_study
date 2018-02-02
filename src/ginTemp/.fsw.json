@@ -6,7 +6,8 @@
       "pattens": [
         "**/*.go",
         "**/*.c",
-        "**/*.py"
+        "**/*.py",
+        "test/*_test.go"
       ],
       "env": {
         "DEBUG": "1"
