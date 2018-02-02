@@ -1,0 +1,2 @@
+webpackJsonp([5],{UGQW:function(t,e,s){"use strict";Object.defineProperty(e,"__esModule",{value:!0});var i={render:function(){var t=this.$createElement;return(this._self._c||t)("div",{staticClass:"welcome-detail"},[this._v("\n    "+this._s(this.msg)+" "+this._s(this.pid)+"\n")])},staticRenderFns:[]},n=s("VU/8")({name:"detail",data:function(){return{msg:"this is detail page,fuuuuuuck"}},computed:{pid:function(){return this.$route.params.id}}},i,!1,null,null,null);e.default=n.exports}});
+//# sourceMappingURL=5.5c0be24ad9d67cc1700d.js.map
