@@ -29,7 +29,10 @@ func RegistRouter(r *gin.Engine) *gin.Engine {
 	// r.Use(Logger())
 	r.POST("/logger", func(c *gin.Context){
 		example := c.MustGet("example").(string)
-		log.Println(example)
+		log.Println("this is loggerFunc")
+		c.JSON(200,gin.H{
+			"output": example,
+		})
 	})
 	// 指定访问的静态文件
 	r.StaticFile("/", "./view/index.html")
