@@ -6,6 +6,15 @@ import (
 	"log"
 )
 
+
+// GlobalMiddleware 注册全局中间件
+func GlobalMiddleware(r *gin.Engine) *gin.Engine {
+	// 绑定全局中间件,可以注册多个
+	r.Use(Logger(),Customer2())
+
+	return r
+}
+
 // Logger 测试中间件
 // 这里的 c.Next() 就是controller 中的方法,相当于实际的业务逻辑, c.Next()的位置
 // 这里的属于全局的中间件, 这个算是后置中间件
@@ -32,10 +41,14 @@ func Customer2() gin.HandlerFunc {
 	}
 }
 
-// GlobalMiddleware 注册全局中间件
-func GlobalMiddleware(r *gin.Engine) *gin.Engine {
-	// 绑定全局中间件,可以注册多个
-	r.Use(Logger(),Customer2())
+//ForAdmin 单独为 admin 这个路由分组准备的
+func ForAdmin(c *gin.Context){
+	c.Set("oldman", "this is only for admin group")
+	c.Next()
+}
 
-	return r
+// ForTest 单独为测试路由添加的中间件
+func ForTest(c *gin.Context) {
+	c.Set("oldman", "this is only for single route")
+	c.Next()
 }
