@@ -8,25 +8,33 @@ import (
 	"net/http"
 	// "time"
 	"log"
+	"github.com/gin-gonic/gin/binding"
+	"reflect"
+	"gopkg.in/go-playground/validator.v8"
+	"time"
 )
 
-// func Logger() gin.HandlerFunc {
-// 	return func(c *gin.Context) {
-// 		t := time.Now()
-// 		c.Set("example", "233333")
-// 		c.Next()
 
-// 		latency := time.Since(t)
-// 		log.Print(latency)
-
-// 		status := c.Writer.Status()
-// 		log.Println(status)
-// 	}
-// }
+// 自定义的验证规则 提交的时间不得晚于当前日期
+func bookableDate(
+	v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value,
+	field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string,
+) bool {
+	log.Println("validate time")
+	if date, ok := field.Interface().(time.Time); ok {
+		today := time.Now()
+		if today.Year() > date.Year() || today.YearDay() > date.YearDay() {
+			return false	// 验证不通过
+		}
+	}
+	return true
+}
 
 
 // RegistRouter 注册路由
 func RegistRouter(r *gin.Engine) *gin.Engine {
+
+	binding.Validator.RegisterValidation("bookabledate", bookableDate)
 	
 	// 指定访问的静态文件
 	r.StaticFile("/", "./view/index.html")
@@ -45,6 +53,8 @@ func RegistRouter(r *gin.Engine) *gin.Engine {
 	r.GET("/hello/:name", controllers.HelloParam)
 	// 进行表单提交的时候,该怎么绑定提交的参数
 	r.POST("/hello/login", controllers.HelloForm)
+	
+	r.POST("/hello/validate", controllers.HelloValidate)
 
 
 

@@ -1,8 +1,10 @@
 package controllers
 import (
 	"github.com/gin-gonic/gin" 
+	"time"
+	"github.com/gin-gonic/gin/binding"
 	// "fmt"
-	// "net/http"
+	"net/http"
 )
 // HelloPage 基本示例,返回 json 格式内容
 func HelloPage(c *gin.Context) {
@@ -34,4 +36,20 @@ func HelloForm(c *gin.Context){
         c.JSON(404, gin.H{"JSON=== status": "binding JSON error!"})
 	}
 	
+}
+
+
+
+type HelloValForm struct {
+	User     string `form:"user" json:"user" binding:"required"`
+	Password string `form:"password" json:"password" binding:"required"`
+	Time time.Time `form:"time" json:"time" binding:"required,bookabledate" time_format:"2006-01-02"`
+}
+func HelloValidate(c *gin.Context) {
+	var b HelloValForm
+	if err := c.ShouldBindWith(&b, binding.Form); err == nil {
+		c.JSON(http.StatusOK, gin.H{"message": "HelloValForm dates are valid!"})
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
 }
