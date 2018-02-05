@@ -4,3 +4,4 @@ src/sourcegraph.com/*
 src/gopcp.v2/*
 bin/*
 pkg/*
+/src/*/vendor/*/
