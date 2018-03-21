@@ -11,7 +11,7 @@ import (
 )
 
 // SALT 密钥
-const SALT = "SECRET"
+const SALT = "secret"
 
 // Header 消息头部
 type Header struct {
@@ -37,7 +37,7 @@ type JWT struct {
 func main(){}
 
 // Encode 将 json 转成符合 JWT 标准的字符串
-func (jwt *JWT) Encode(salt string) string {
+func (jwt *JWT) Encode() string {
 	header, err := json.Marshal(jwt.Header)
 	checkError(err)
 	headerString := base64.StdEncoding.EncodeToString(header)
@@ -52,7 +52,7 @@ func (jwt *JWT) Encode(salt string) string {
 }
 
 func getHmacCode(s string) string {
-    h := hmac.New(sha256.New, []byte("secret"))
+    h := hmac.New(sha256.New, []byte(SALT))
 	h.Write([]byte(s))
 	key := h.Sum(nil)
     return hex.EncodeToString(key)

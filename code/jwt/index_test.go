@@ -8,7 +8,7 @@ func Test_Encode(t *testing.T) {
 	jwt := JWT{}
 	jwt.Header = Header{"HS256","JWT"}
 	jwt.PayLoad = PayLoad{"1234567890","John Doe",true}
-	result := jwt.Encode("secret")
+	result := jwt.Encode()
 	t.Log(result)
 }
 
