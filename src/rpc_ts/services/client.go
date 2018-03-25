@@ -1,8 +1,13 @@
 package services
 
 import(
-	// "fmt"
+	"fmt"
 	"encoding/json"
+	"time"
+
+	// 引入 mysql 驱动
+	"database/sql"
+	_ "github.com/GO-SQL-Driver/MySQL"
 )
 
 // ClientForm 接收参数时的 json 格式
@@ -10,9 +15,36 @@ type ClientForm struct{
 	Type string `json:"type" binding:"required"`
 	Task []TaskItem
 }
+
+// struct 转成 json 字符串
 func (cf *ClientForm) toString() string {
 	jsonByte, _ := json.Marshal(cf)
 	return string(jsonByte)
+}
+
+// 插入数据库
+func (cf *ClientForm) insertSQL() int64 {
+	db, err := sql.Open("mysql", "root:123123@tcp(127.0.0.1:33060)/go?charset=utf8")
+	defer db.Close()
+	checkErr(err)
+
+	//insert
+	stmt, err := db.Prepare("INSERT test SET name=? , age=? , created_at=?")
+	checkErr(err)
+	res, err := stmt.Exec("gaopengfei", 22, time.Now().Unix())
+	checkErr(err)
+	// //获取插入数据的 id
+	id, err := res.LastInsertId()
+	checkErr(err)
+	fmt.Printf("insert id %d \n", id)
+
+	return id
+}
+
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
 
@@ -31,6 +63,8 @@ type Response map[string]interface{}
 // ClientService 客户端的运行逻辑
 func ClientService(request ClientForm) Response{
 	jsonStr := request.toString()
+
+	request.insertSQL()
 
 	// var testJson ClientForm
 	// json.Unmarshal([]byte(jsonStr), &testJson)
