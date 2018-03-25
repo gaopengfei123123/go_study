@@ -8,6 +8,7 @@ import (
 
 func main() {
 	r := gin.Default()
+	// 全局注册的中间件
 	r = middleware.GlobalMiddleware(r)
 	r = router.RegistRouter(r)
 
