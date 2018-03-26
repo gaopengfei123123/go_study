@@ -64,23 +64,22 @@ type TaskItem struct{
 	Cancel string `json:"cancel" binding:"required"`
 }
 
+
+
+
 // Response 通用的返回接口
 type Response map[string]interface{}
-
 
 // ClientService 客户端的运行逻辑
 func ClientService(request ClientForm) Response{
 	jsonStr := request.toString()
 
-	request.insertSQL()
+	insertId := request.insertSQL()
 
-	// var testJson ClientForm
-	// json.Unmarshal([]byte(jsonStr), &testJson)
-	// fmt.Println(testJson)
-
+	insertKey := fmt.Sprintf("ts_queue_%v", insertId)
 	// 向消息队列中发送消息
 	var mq MQService
-	mq.Send(request.Type,jsonStr)
+	mq.Send(insertKey,jsonStr)
 
 	return Response{
 		"message" : request.Type,
