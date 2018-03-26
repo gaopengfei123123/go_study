@@ -29,9 +29,12 @@ func (cf *ClientForm) insertSQL() int64 {
 	checkErr(err)
 
 	//insert
-	stmt, err := db.Prepare("INSERT test SET name=? , age=? , created_at=?")
+	stmt, err := db.Prepare("INSERT rpc_ts SET payload=? , status=?,exec_num=?, update_at=? , create_at=?")
 	checkErr(err)
-	res, err := stmt.Exec("gaopengfei", 22, time.Now().Unix())
+
+	jsonStr := cf.toString()
+	timeStamp := time.Now().Unix()
+	res, err := stmt.Exec(jsonStr, 0,0,timeStamp,timeStamp )
 	checkErr(err)
 	// //获取插入数据的 id
 	id, err := res.LastInsertId()
@@ -39,6 +42,11 @@ func (cf *ClientForm) insertSQL() int64 {
 	fmt.Printf("insert id %d \n", id)
 
 	return id
+}
+
+// 插入MQ
+func (cf *ClientForm) insertMQ() bool {
+	return false
 }
 
 func checkErr(err error) {
