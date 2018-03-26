@@ -3,9 +3,17 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"rpc_ts/router"
+	"rpc_ts/services"
+	// "sync"
 )
 
 func main() {
+	// wg := sync.WaitGroup{}
+	// wg.Add(1)
+	var mq services.MQService
+	go mq.Read()
+	// wg.Wait()
+
 	r := gin.Default()
 
 	r = router.RegistRouter(r)

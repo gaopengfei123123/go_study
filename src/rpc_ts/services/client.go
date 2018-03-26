@@ -78,6 +78,10 @@ func ClientService(request ClientForm) Response{
 	// json.Unmarshal([]byte(jsonStr), &testJson)
 	// fmt.Println(testJson)
 
+	// 向消息队列中发送消息
+	var mq MQService
+	mq.Send(request.Type,jsonStr)
+
 	return Response{
 		"message" : request.Type,
 		"api": request.Task[0].API,
