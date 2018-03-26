@@ -5,4 +5,4 @@ src/gopcp.v2/*
 bin/*
 pkg/*
 /src/*/vendor/*/
-src/google.golang.org/grpc
+src/google.golang.org/*
