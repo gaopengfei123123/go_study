@@ -14,7 +14,18 @@ import(
 type ClientForm struct{
 	Type string `json:"type" binding:"required"`
 	Task []TaskItem
+	ID	 int64
 }
+
+// TaskItem 单个任务需要的结构
+type TaskItem struct{
+	API string `json:"api" binding:"required"`
+	Try string `json:"try" binding:"required"`
+	Confirm string `json:"confirm" binding:"required"`
+	Cancel string `json:"cancel" binding:"required"`
+}
+
+
 
 // struct 转成 json 字符串
 func (cf *ClientForm) toString() string {
@@ -41,12 +52,18 @@ func (cf *ClientForm) insertSQL() int64 {
 	checkErr(err)
 	fmt.Printf("insert id %d \n", id)
 
+	cf.ID = id
 	return id
 }
 
 // 插入MQ
-func (cf *ClientForm) insertMQ() bool {
-	return false
+func (cf *ClientForm) insertMQ() {
+	jsonStr := cf.toString()
+
+	insertKey := fmt.Sprintf("ts_queue_%v", cf.ID)
+	// 向消息队列中发送消息
+	var mq MQService
+	mq.Send(insertKey,jsonStr)
 }
 
 func checkErr(err error) {
@@ -56,35 +73,19 @@ func checkErr(err error) {
 }
 
 
-// TaskItem 单个任务需要的结构
-type TaskItem struct{
-	API string `json:"api" binding:"required"`
-	Try string `json:"try" binding:"required"`
-	Confirm string `json:"confirm" binding:"required"`
-	Cancel string `json:"cancel" binding:"required"`
-}
-
-
-
 
 // Response 通用的返回接口
 type Response map[string]interface{}
 
 // ClientService 客户端的运行逻辑
 func ClientService(request ClientForm) Response{
-	jsonStr := request.toString()
-
-	insertId := request.insertSQL()
-
-	insertKey := fmt.Sprintf("ts_queue_%v", insertId)
-	// 向消息队列中发送消息
-	var mq MQService
-	mq.Send(insertKey,jsonStr)
+	request.insertSQL()
+	request.insertMQ()
 
 	return Response{
 		"message" : request.Type,
 		"api": request.Task[0].API,
-		"str": jsonStr,
+		"str": request.toString(),
 	}
 }
 
