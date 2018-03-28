@@ -36,7 +36,7 @@ type ServerForm struct{
 	ExecNum int `json:"exec_num"`		//执行次数
 	ExecTime int `json:"exec_time"`		//执行时间
 	ID	int 	`json:"ID"`				//数据库主键
-	Step	int `json:"step"`			//执行的步骤
+	Step	int `json:"step"`			//执行的步骤 0为未开始, 1时当为并发时已完成 try,当是串行时再商量
 	ErrorMsg string `json:"error_msg"`  //执行出错的原因
 }
 
@@ -46,7 +46,10 @@ type ServerItem struct{
 	Try string `json:"try" binding:"required"`
 	Confirm string `json:"confirm" binding:"required"`
 	Cancel string `json:"cancel" binding:"required"`
-	Status string `json:"status"`						//单位操作是否执行成功
+	Step int `json:"step"`					//单位操作执行阶段 0 为 try 阶段,1为 commit 阶段,2为 cancel 阶段
+	TryStatus string	`json:"try_status"`		// 各阶段的执行任务 有 wait,done,false 三种情况
+	CommitStatus string `json:"commit_status"`
+	CancelStatus string `json:"cancel_status"`
 }
 
 // ServerService 用于处理队列任务的模块
@@ -75,15 +78,18 @@ func syncHandler(req ServerForm){
 func asyncHandler(req ServerForm){
 	fmt.Println("这里是异步操作")
 
+	// 检测执行次数
 	if req.ExecNum >= MAX_EXEC_NUM {
 		fmt.Println("已超过最大执行次数")
 		return 
 	}
+	// 执行次数加1
+	req.ExecNum ++
 
 	// 根据不同的执行步骤进行操作
 	switch req.Step {
 	case 0:
-		combineTry(&req)
+		req.combineTry()
 	case 1:
 
 	}
@@ -92,7 +98,7 @@ func asyncHandler(req ServerForm){
 
 
 // 同步执行 try 步骤
-func combineTry(req *ServerForm){
+func (req *ServerForm) combineTry(){
 	// 创建对应数量的通信通道接收消息
 	resChan := make(chan respBody, len(req.Task))
 	defer close(resChan)
@@ -123,7 +129,12 @@ func combineTry(req *ServerForm){
 	if !isPass {
 		req.cancel(result)
 	} else {
-		logs.Info("try 操作成功, ID:", req.ID)
+		req.Step ++
+		logs.Debug("try 操作成功, ID:", req.ID,req.Step)
+		// 更新数据库信息
+		req.updateStatus()
+		// 执行并发提交
+		req.combineCommit()
 	}
 
 	fmt.Println("同步 try", result, "是否通过:", isPass)
@@ -193,6 +204,7 @@ type respBody struct{
 	Body string
 	Error string
 	API string
+	Index int	// 任务所属的下标
 }
 // post 请求工具
 func postClien(url string, jsonStr string) respBody {
@@ -224,6 +236,7 @@ func postClien(url string, jsonStr string) respBody {
 		status = 400
 		errStr = string(body)
 	}
+	// 返回一个指定的响应结构
 	return respBody{
 		API: url,
 		Status: status,
@@ -233,8 +246,44 @@ func postClien(url string, jsonStr string) respBody {
 }
 
 // 同步执行 commit 步骤
-func combineCommit(req *ServerForm){
+// 思路:
+// 1. 首先过滤出来未执行和执行失败的任务下标,准备进行处理
+// 2. 进行批处理执行
+// 3. 根据执行请求的返回来进行操作: 1>如果成功那么做标记后返回内容,2> 如果失败: 一如果出现执行超时情况则标记失败准备下次请求,如果是接口返回无法提交或500则整体执行 cancel 操作
+func (req *ServerForm) combineCommit(){
+	// 首先筛选出来未执行的任务的下标, 因为执行到这一步的时候已经是 try 操作完毕了
+	// 因此这里主要看的是 ServerForm 的Step 和 Item 当中的 commit 的执行状态
+	logs.Debug("执行 commit 逻辑 ","执行步骤:", req.Step)
 
+	// resChan := make(chan respBody, len(req.Task))
+	// defer close(resChan)
+
+	var indexFilter []int
+	for index, value := range req.Task {
+		if value.CommitStatus != "done" {
+			indexFilter = append(indexFilter, index)
+			// 单个执行提交操作
+			// go execCommit(value, resChan, index)
+		}
+	}
+
+	logs.Debug("当前准备执行的任务索引:", indexFilter)
+
+
+}
+
+// 执行单个 commit 操作
+func execCommit(task ServerItem, resChan chan<- respBody, ){
+	// 类似 try catch 的一个放报错机制
+	defer func() {
+		if err := recover(); err != nil {
+			logs.Error(err)
+		}
+	}()
+
+	// 创建一个阻塞通道,用于执行请求任务,也是为了计算超时时间
+	dst := make(chan respBody)
+	defer close(dst)
 }
 
 // 同步执行 cancel 步骤?
@@ -243,23 +292,36 @@ func combineCancel(req *ServerForm){
 }
 
 
-func (rq *ServerForm) toString() string{
-	jsonByte, _ := json.Marshal(rq)
+func (req *ServerForm) toString() string{
+	jsonByte, _ := json.Marshal(req)
 	return string(jsonByte)
 }
 
 
-// 并行操作 try 不通过直接取消事务,
-func (rq *ServerForm) cancel(errMsg []respBody){
-	logs.Info("准备开始取消",rq)
-	errStr := JSONToStr(errMsg)
+// 更新当前任务的mysql状态
+func (req *ServerForm) updateStatus(){
+	logs.Debug("持久化状态,ID:", req.ID)
 	db, _ := sql.Open("mysql", "root:123123@tcp(127.0.0.1:33060)/go?charset=utf8")
-	sql := "UPDATE rpc_ts SET payload=?, status=2,exec_num=exec_num+1 ,update_at=?,error_info=? WHERE id=?"
+	sql := "UPDATE rpc_ts SET payload=?,status=1,exec_num=?,update_at=?,error_info=? WHERE id=?"
 	stmt, err := db.Prepare(sql)
 	checkErr(err)
-	_, err = stmt.Exec(rq.toString(),time.Now().Unix(),errStr,rq.ID)
+
+	_, err = stmt.Exec(req.toString(), req.ExecNum, time.Now().Unix(), req.ErrorMsg, req.ID)
 	checkErr(err)
-	logs.Debug("插入数据库内容:",rq.toString(),time.Now().Unix(),errStr,rq.ID)
+	logs.Debug("更新数据库信息,ID:", req.ID)
+}
+
+// 并行操作 try 不通过直接取消事务,
+func (req *ServerForm) cancel(errMsg []respBody){
+	logs.Info("准备开始取消",req)
+	errStr := JSONToStr(errMsg)
+	db, _ := sql.Open("mysql", "root:123123@tcp(127.0.0.1:33060)/go?charset=utf8")
+	sql := "UPDATE rpc_ts SET payload=?, status=2,exec_num=? ,update_at=?,error_info=? WHERE id=?"
+	stmt, err := db.Prepare(sql)
+	checkErr(err)
+	_, err = stmt.Exec(req.toString(), req.ExecNum, time.Now().Unix(), errStr, req.ID)
+	checkErr(err)
+	logs.Debug("插入数据库内容:",req.toString(),time.Now().Unix(),errStr,req.ID)
 
 
 	logs.Debug("此处应该向某处发送错误通知")
