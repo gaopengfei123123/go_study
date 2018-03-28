@@ -3,6 +3,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"rpc_ts/controllers"
 	"net/http"
+	"time"
 )
 
 
@@ -17,6 +18,26 @@ func RegistRouter(r *gin.Engine) *gin.Engine {
 
 	// 接收执行事务的接口  Serial(串行)  Parallel(并行)
 	r.POST("/client", controllers.Client)
+
+	r.POST("/api/test", func(c *gin.Context){
+		var testForm struct{
+			Message string `json:"message"`
+		}
+
+		time.Sleep(time.Second * 2)
+
+		// 验证是否成功绑定
+		if c.BindJSON(&testForm) == nil {
+			
+			c.JSON(200, testForm)
+		} else {
+			// 处理失败时的返回
+			c.JSON(200, gin.H{
+				"message" : "get nothing",
+			})
+		}
+
+	})
 
 
 

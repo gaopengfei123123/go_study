@@ -3,10 +3,12 @@ package services
 import(
 	"fmt"
 	"encoding/json"
-	"sync"
+	// "sync"
 	"context"
 	"time"
 	"net/http"
+	"io/ioutil"
+	"bytes"
 )
 
 const(	
@@ -51,16 +53,18 @@ func ServerService(jsonStr []byte){
 
 
 
-// 并行
+// 顺序执行
 func syncHandler(req ServerForm){
 	fmt.Println("这里是同步操作", req)
 }
 
+// 并发执行
 func asyncHandler(req ServerForm){
 	fmt.Println("这里是异步操作")
 
 	if req.ExecNum >= MAX_EXEC_NUM {
 		fmt.Println("已超过最大执行次数")
+		return 
 	}
 
 	// 根据不同的执行步骤进行操作
@@ -76,43 +80,63 @@ func asyncHandler(req ServerForm){
 
 // 同步执行 try 步骤
 func combineTry(req *ServerForm){
-	wg := sync.WaitGroup{}
+	// 创建对应数量的通信通道接收消息
+	resChan := make(chan respBody, len(req.Task))
+	defer close(resChan)
 
 	for _, value := range req.Task{
-		fmt.Println("执行任务:",value)
-		wg.Add(1)
-		go execTry(value, &wg)
+		fmt.Println("开始执行任务:",value)
+		go execTry(value, resChan)
 	}
 
-	wg.Wait()
+	// 判断整体的 try 是否通过
+	isPass := true
+	// 将异步的数据导出
+	var result []respBody 
+	for i:= 0; i < len(req.Task); i++ {
+		res := <-resChan
+		
+		if res.Status != 200 {
+			isPass = false
+		}
 
-	fmt.Println("同步 try")
+		result = append(result, res)
+		
+	}
+	
+	// 如果不通过的话
+	if !isPass {
+		fmt.Println("执行失败需要处理的步骤")
+	}
+
+	fmt.Println("同步 try", result, "是否通过:", isPass)
 }
 
 // 执行单个 try 操作
-func execTry(task ServerItem, wg *sync.WaitGroup){
+func execTry(task ServerItem,  resultChan chan<- respBody){
+	// 类似 try catch 的一个放报错机制
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
 		}
 	}()
-	defer wg.Done()
+	// defer wg.Done()
 
-	dst := make(chan struct{})
+	// 创建一个阻塞通道,用于执行请求任务,也是为了计算超时时间
+	dst := make(chan respBody)
 	defer close(dst)
 
+	// 这里是进行 post 请求的主体
 	go func(task ServerItem) {
 		start := time.Now()
-
-		resp, err := http.Head(task.API)
-		if err != nil {
-			fmt.Println("Error:",task.API, err)
-		}
+		resp := postClien(task.API, task.Try)
 		end := time.Now()
 		exeTime := end.Sub(start).Nanoseconds() / 1000000
-		fmt.Println(task.API, ":", resp.Status, " delay:" ,  exeTime , "ms")
 
-		dst <- struct{}{}
+		fmt.Println(task.API, ":"," delay:" ,  exeTime , "ms",resp.Status, string(resp.Body))
+
+		// 将请求结果导出
+		dst <- resp
 
 	}(task)
 
@@ -120,19 +144,62 @@ func execTry(task ServerItem, wg *sync.WaitGroup){
 	ctx, cancel := context.WithTimeout(context.Background(),MAX_EXEC_TIME * time.Second)
 	defer cancel()
 
+	// 监听超时时间
 	LOOP:
 	for {
 		select {
-		case <-dst:
+		case resp := <-dst:
+			// 当请求正常时直接怼到结果信道中
+			resultChan <- resp
 			break LOOP
 		case <-ctx.Done():
+			// 当请求超时时,需要生成 log 并返回错误信息
+			errResp := respBody{
+				Status: 400,
+				Body: "",
+				Error: "exec timeout",
+			}
+			resultChan <- errResp
+
 			fmt.Printf("URL: %s has been running too looong! \n",task.API)
 			break LOOP
 		}
 	}
 
+}
 
 
+// 进行 post 请求时的返回的结构体
+type respBody struct{
+	Status int
+	Body string
+	Error string
+}
+// post 请求工具
+func postClien(url string, jsonStr string) respBody {
+	var jsonByte = []byte(jsonStr)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonByte))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+
+	body, _ := ioutil.ReadAll(resp.Body)
+	var status int
+	if resp.Status == "200 OK" {
+		status = 200
+	} else {
+		status = 400
+	}
+	return respBody{
+		Status: status,
+		Body: string(body),
+	}
 }
 
 // 同步执行 commit 步骤
