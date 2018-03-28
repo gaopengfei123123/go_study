@@ -9,12 +9,21 @@ import(
 	"net/http"
 	"io/ioutil"
 	"bytes"
+	"github.com/astaxie/beego/logs"
 )
 
 const(	
 	SYNC_MODE = "sync"		//同步操作模式
 	ASYNC_MODE = "async"		//异步操作模式
 )
+
+func init(){
+	fmt.Println("初始化 log 配置")
+	// log 开异步
+	logs.Async(1e3)
+	config := fmt.Sprintf(`{"filename":"%s","separate":["error", "warning", "notice", "info", "debug"]}`, LOG_PATH )
+	logs.SetLogger(logs.AdapterMultiFile, config)
+}
 
 
 // ServerForm 接收参数时的 json 格式
@@ -84,8 +93,11 @@ func combineTry(req *ServerForm){
 	resChan := make(chan respBody, len(req.Task))
 	defer close(resChan)
 
+	logs.Info("任务ID:", req.ID, "执行 try")
+
+
 	for _, value := range req.Task{
-		fmt.Println("开始执行任务:",value)
+		fmt.Println("开始执行任务:",value.API)
 		go execTry(value, resChan)
 	}
 
@@ -106,7 +118,9 @@ func combineTry(req *ServerForm){
 	
 	// 如果不通过的话
 	if !isPass {
-		fmt.Println("执行失败需要处理的步骤")
+		logs.Warn("执行失败需要处理的步骤")
+	} else {
+		logs.Info("try 操作成功, ID:", req.ID)
 	}
 
 	fmt.Println("同步 try", result, "是否通过:", isPass)
@@ -117,7 +131,7 @@ func execTry(task ServerItem,  resultChan chan<- respBody){
 	// 类似 try catch 的一个放报错机制
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Println(err)
+			logs.Error(err)
 		}
 	}()
 	// defer wg.Done()
@@ -133,7 +147,7 @@ func execTry(task ServerItem,  resultChan chan<- respBody){
 		end := time.Now()
 		exeTime := end.Sub(start).Nanoseconds() / 1000000
 
-		fmt.Println(task.API, ":"," delay:" ,  exeTime , "ms",resp.Status, string(resp.Body))
+		logs.Info(task.API, ":"," delay:" ,  exeTime , "ms",resp.Status, string(resp.Body))
 
 		// 将请求结果导出
 		dst <- resp
@@ -161,7 +175,7 @@ func execTry(task ServerItem,  resultChan chan<- respBody){
 			}
 			resultChan <- errResp
 
-			fmt.Printf("URL: %s has been running too looong! \n",task.API)
+			logs.Warn("URL: %s has been running too looong! \n",task.API)
 			break LOOP
 		}
 	}
@@ -177,6 +191,13 @@ type respBody struct{
 }
 // post 请求工具
 func postClien(url string, jsonStr string) respBody {
+	// 类似 try catch 的一个放报错机制
+	defer func() {
+		if err := recover(); err != nil {
+			logs.Error(err)
+		}
+	}()
+
 	var jsonByte = []byte(jsonStr)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonByte))
 	req.Header.Set("Content-Type", "application/json")

@@ -26,3 +26,9 @@ const (
 	// MAX_EXEC_TIME 最大执行时间(单位 秒)
 	MAX_EXEC_TIME = 20
 )
+
+
+// log 的一些设置
+const (
+	LOG_PATH = "./logs/rpc_ts.log"
+)

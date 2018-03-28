@@ -6,3 +6,4 @@ bin/*
 pkg/*
 /src/*/vendor/*/
 src/google.golang.org/*
+src/rpc_ts/logs/*
