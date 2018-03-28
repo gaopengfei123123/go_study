@@ -5,7 +5,16 @@ import(
 	"fmt"
 	"context"
 	// "time"
+	"github.com/astaxie/beego/logs"
 )
+
+func init(){
+	fmt.Println("初始化 log 配置")
+	// log 开异步
+	logs.Async(1e3)
+	config := fmt.Sprintf(`{"filename":"%s","separate":["error", "warning", "notice", "info", "debug"]}`, LOG_PATH )
+	logs.SetLogger(logs.AdapterMultiFile, config)
+}
 
 // MQService mq 服务,目前暂定 kafka, 包含 send 和 read 两个方法
 type MQService struct{}
@@ -22,11 +31,11 @@ func (mq *MQService) Send(key string,value string){
 		},
 	)
 
-	fmt.Println("already send msg")
+	logs.Debug("already send msg, key:", key)
 }
 
 func (mq *MQService) Read(){
-	fmt.Println("mq reader is starting")
+	logs.Debug("mq reader is starting")
 	startReading()
 }
 
@@ -48,11 +57,10 @@ func startReading(){
 		if err != nil {
 			break
 		}
-		fmt.Printf("message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
+		logs.Info("message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
 		ServerService(m.Value)
 
 		r.CommitMessages(ctx, m)
 	}
-	fmt.Println("done")
 	defer r.Close()
 }

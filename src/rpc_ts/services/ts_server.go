@@ -10,6 +10,9 @@ import(
 	"io/ioutil"
 	"bytes"
 	"github.com/astaxie/beego/logs"
+	// 引入 mysql 驱动
+	"database/sql"
+	_ "github.com/GO-SQL-Driver/MySQL"
 )
 
 const(	
@@ -22,7 +25,7 @@ func init(){
 	// log 开异步
 	logs.Async(1e3)
 	config := fmt.Sprintf(`{"filename":"%s","separate":["error", "warning", "notice", "info", "debug"]}`, LOG_PATH )
-	logs.SetLogger(logs.AdapterMultiFile, config)
+	logs.SetLogger(logs.AdapterConsole, config)
 }
 
 
@@ -34,6 +37,7 @@ type ServerForm struct{
 	ExecTime int `json:"exec_time"`		//执行时间
 	ID	int 	`json:"ID"`				//数据库主键
 	Step	int `json:"step"`			//执行的步骤
+	ErrorMsg string `json:"error_msg"`  //执行出错的原因
 }
 
 // ServerItem 单个任务需要的结构
@@ -42,7 +46,7 @@ type ServerItem struct{
 	Try string `json:"try" binding:"required"`
 	Confirm string `json:"confirm" binding:"required"`
 	Cancel string `json:"cancel" binding:"required"`
-	Status string `json:"status"`
+	Status string `json:"status"`						//单位操作是否执行成功
 }
 
 // ServerService 用于处理队列任务的模块
@@ -113,12 +117,11 @@ func combineTry(req *ServerForm){
 		}
 
 		result = append(result, res)
-		
 	}
 	
 	// 如果不通过的话
 	if !isPass {
-		logs.Warn("执行失败需要处理的步骤")
+		req.cancel(result)
 	} else {
 		logs.Info("try 操作成功, ID:", req.ID)
 	}
@@ -169,6 +172,7 @@ func execTry(task ServerItem,  resultChan chan<- respBody){
 		case <-ctx.Done():
 			// 当请求超时时,需要生成 log 并返回错误信息
 			errResp := respBody{
+				API: task.API,
 				Status: 400,
 				Body: "",
 				Error: "exec timeout",
@@ -188,6 +192,7 @@ type respBody struct{
 	Status int
 	Body string
 	Error string
+	API string
 }
 // post 请求工具
 func postClien(url string, jsonStr string) respBody {
@@ -212,14 +217,18 @@ func postClien(url string, jsonStr string) respBody {
 
 	body, _ := ioutil.ReadAll(resp.Body)
 	var status int
+	var errStr string
 	if resp.Status == "200 OK" {
 		status = 200
 	} else {
 		status = 400
+		errStr = string(body)
 	}
 	return respBody{
+		API: url,
 		Status: status,
 		Body: string(body),
+		Error: errStr,
 	}
 }
 
@@ -231,4 +240,37 @@ func combineCommit(req *ServerForm){
 // 同步执行 cancel 步骤?
 func combineCancel(req *ServerForm){
 
+}
+
+
+func (rq *ServerForm) toString() string{
+	jsonByte, _ := json.Marshal(rq)
+	return string(jsonByte)
+}
+
+
+// 并行操作 try 不通过直接取消事务,
+func (rq *ServerForm) cancel(errMsg []respBody){
+	logs.Info("准备开始取消",rq)
+	errStr := JSONToStr(errMsg)
+	db, _ := sql.Open("mysql", "root:123123@tcp(127.0.0.1:33060)/go?charset=utf8")
+	sql := "UPDATE rpc_ts SET payload=?, status=2,exec_num=exec_num+1 ,update_at=?,error_info=? WHERE id=?"
+	stmt, err := db.Prepare(sql)
+	checkErr(err)
+	_, err = stmt.Exec(rq.toString(),time.Now().Unix(),errStr,rq.ID)
+	checkErr(err)
+	logs.Debug("插入数据库内容:",rq.toString(),time.Now().Unix(),errStr,rq.ID)
+
+
+	logs.Debug("此处应该向某处发送错误通知")
+}
+
+
+
+// ==================================TOOLS===================================
+
+// JSONToStr 转字符串的统一方法
+func JSONToStr(req interface{}) string{
+	strByte, _ := json.Marshal(req)
+	return string(strByte)
 }

@@ -8,7 +8,16 @@ import(
 	// 引入 mysql 驱动
 	"database/sql"
 	_ "github.com/GO-SQL-Driver/MySQL"
+	"github.com/astaxie/beego/logs"
 )
+
+func init(){
+	fmt.Println("初始化 log 配置")
+	// log 开异步
+	logs.Async(1e3)
+	config := fmt.Sprintf(`{"filename":"%s","separate":["error", "warning", "notice", "info", "debug"]}`, LOG_PATH )
+	logs.SetLogger(logs.AdapterMultiFile, config)
+}
 
 // ClientForm 接收参数时的 json 格式
 type ClientForm struct{
@@ -50,7 +59,6 @@ func (cf *ClientForm) insertSQL() int64 {
 	// //获取插入数据的 id
 	id, err := res.LastInsertId()
 	checkErr(err)
-	fmt.Printf("insert id %d \n", id)
 
 	cf.ID = id
 	return id
