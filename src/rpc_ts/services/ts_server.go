@@ -106,9 +106,9 @@ func (req *ServerForm) combineTry(){
 	logs.Info("任务ID:", req.ID, "执行 try")
 
 
-	for _, value := range req.Task{
+	for index, value := range req.Task{
 		fmt.Println("开始执行任务:",value.API)
-		go execTry(value, resChan)
+		go execItem("try", index, value, resChan)
 	}
 
 	// 判断整体的 try 是否通过
@@ -140,8 +140,8 @@ func (req *ServerForm) combineTry(){
 	fmt.Println("同步 try", result, "是否通过:", isPass)
 }
 
-// 执行单个 try 操作
-func execTry(task ServerItem,  resultChan chan<- respBody){
+// 执行单个请求操作, 可根据 taskType 来区分请求的包体
+func execItem(taskType string, index int,task ServerItem,  resultChan chan<- respBody){
 	// 类似 try catch 的一个放报错机制
 	defer func() {
 		if err := recover(); err != nil {
@@ -155,9 +155,22 @@ func execTry(task ServerItem,  resultChan chan<- respBody){
 	defer close(dst)
 
 	// 这里是进行 post 请求的主体
-	go func(task ServerItem) {
+	go func(task ServerItem, taskType string) {
 		start := time.Now()
-		resp := postClien(task.API, task.Try)
+		var resp respBody
+		
+		switch taskType {
+		case "try":
+			url := fmt.Sprintf("%s/try", task.API)
+			resp = postClien(url, task.Try)
+		case "confirm":
+			url := fmt.Sprintf("%s/confirm", task.API)
+			resp = postClien(url, task.Confirm)
+		case "cancel":
+			url := fmt.Sprintf("%s/cancel", task.API)
+			resp = postClien(url, task.Cancel)
+		}
+		
 		end := time.Now()
 		exeTime := end.Sub(start).Nanoseconds() / 1000000
 
@@ -166,7 +179,7 @@ func execTry(task ServerItem,  resultChan chan<- respBody){
 		// 将请求结果导出
 		dst <- resp
 
-	}(task)
+	}(task, taskType)
 
 	// 这里就是声明一个倒计时
 	ctx, cancel := context.WithTimeout(context.Background(),MAX_EXEC_TIME * time.Second)
@@ -178,6 +191,7 @@ func execTry(task ServerItem,  resultChan chan<- respBody){
 		select {
 		case resp := <-dst:
 			// 当请求正常时直接怼到结果信道中
+			resp.Index = index
 			resultChan <- resp
 			break LOOP
 		case <-ctx.Done():
@@ -187,64 +201,17 @@ func execTry(task ServerItem,  resultChan chan<- respBody){
 				Status: 400,
 				Body: "",
 				Error: "exec timeout",
+				Index: index,
+				ErrorCode: 408,
 			}
 			resultChan <- errResp
 
-			logs.Warn("URL: %s has been running too looong! \n",task.API)
+			logs.Warn("URL: %s has been running toooooooo looooooong! \n",task.API)
 			break LOOP
 		}
 	}
 
 }
-
-
-// 进行 post 请求时的返回的结构体
-type respBody struct{
-	Status int
-	Body string
-	Error string
-	API string
-	Index int	// 任务所属的下标
-}
-// post 请求工具
-func postClien(url string, jsonStr string) respBody {
-	// 类似 try catch 的一个放报错机制
-	defer func() {
-		if err := recover(); err != nil {
-			logs.Error(err)
-		}
-	}()
-
-	var jsonByte = []byte(jsonStr)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonByte))
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-
-
-	body, _ := ioutil.ReadAll(resp.Body)
-	var status int
-	var errStr string
-	if resp.Status == "200 OK" {
-		status = 200
-	} else {
-		status = 400
-		errStr = string(body)
-	}
-	// 返回一个指定的响应结构
-	return respBody{
-		API: url,
-		Status: status,
-		Body: string(body),
-		Error: errStr,
-	}
-}
-
 // 同步执行 commit 步骤
 // 思路:
 // 1. 首先过滤出来未执行和执行失败的任务下标,准备进行处理
@@ -255,17 +222,56 @@ func (req *ServerForm) combineCommit(){
 	// 因此这里主要看的是 ServerForm 的Step 和 Item 当中的 commit 的执行状态
 	logs.Debug("执行 commit 逻辑 ","执行步骤:", req.Step)
 
-	// resChan := make(chan respBody, len(req.Task))
-	// defer close(resChan)
+	resChan := make(chan respBody, len(req.Task))
+	defer close(resChan)
 
 	var indexFilter []int
 	for index, value := range req.Task {
 		if value.CommitStatus != "done" {
 			indexFilter = append(indexFilter, index)
 			// 单个执行提交操作
-			// go execCommit(value, resChan, index)
+			go execItem("confirm", index, value, resChan)
 		}
 	}
+
+	// 判断整体的 confirm 是否通过(如果部分未通过则会重回队列)
+	isPass := true
+	// 判断是否产生需要终止整个事务的事件
+	isBreak := false
+	// 将异步的数据导出
+	var result []respBody 
+
+	for i:= 0; i < len(req.Task); i++ {
+		res := <-resChan
+		if res.Status != 200 {
+			// 只要请求不成功就不能通过,但是还需要判断是否终止操作
+			isPass = false
+			// 执行超时的则重回队列
+			if res.ErrorCode != 408 {
+				isBreak = true
+			}
+			req.Task[res.Index].CommitStatus = "false"
+		} else {
+			req.Task[res.Index].CommitStatus = "done"
+		}
+		result = append(result, res)
+	}
+
+	logs.Error("当前事务状态:", req)
+
+	if isBreak {
+		logs.Error("执行中断操作操作")
+		return
+	}
+
+	if !isPass {
+		logs.Debug("执行重回队列的操作")
+		return
+	}
+
+	logs.Error("准备完成动作")
+
+	
 
 	logs.Debug("当前准备执行的任务索引:", indexFilter)
 
@@ -335,4 +341,72 @@ func (req *ServerForm) cancel(errMsg []respBody){
 func JSONToStr(req interface{}) string{
 	strByte, _ := json.Marshal(req)
 	return string(strByte)
+}
+
+
+// 统一的返回格式内容
+// ```json
+// {
+// 	"code": 200,	
+// 	"error_code": 400,
+// 	"error_message": "错误信息",
+// 	"data": "返回内容的 json 字符串"
+// }
+
+// ```
+
+// 进行 post 请求时的返回的结构体
+type respBody struct{
+	Status int		`json:"code"`
+	Body string		`json:"data"`
+	Error string	`json:"error_message"`
+	API string
+	Index int	// 任务所属的下标
+	ErrorCode int `json:"error_code"`
+}
+// post 请求工具
+func postClien(url string, jsonStr string) respBody {
+	// 类似 try catch 的一个放报错机制
+	defer func() {
+		if err := recover(); err != nil {
+			logs.Error(err)
+		}
+	}()
+
+	var jsonByte = []byte(jsonStr)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonByte))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	logs.Debug("post 请求返回内容:", string(body))
+
+	if resp.StatusCode == 200 {
+		respForm := respBody{}
+		json.Unmarshal(body, &respForm)
+
+		if (respForm.ErrorCode != 0) {
+			respForm.Status = 401
+		}
+		
+		return respForm
+	} 
+	// 非200的请求统统属于
+	// 返回一个指定的响应结构
+	return respBody{
+		API: url,
+		Status: resp.StatusCode,
+		Body: string(body),
+		Error: "request error",
+		ErrorCode: resp.StatusCode,
+	}
+	
 }
