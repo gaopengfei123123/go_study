@@ -103,11 +103,10 @@ func (req *ServerForm) combineTry(){
 	resChan := make(chan respBody, len(req.Task))
 	defer close(resChan)
 
-	logs.Info("任务ID:", req.ID, "执行 try")
+	logs.Info("执行 try,ID:", req.ID)
 
 
 	for index, value := range req.Task{
-		fmt.Println("开始执行任务:",value.API)
 		go execItem("try", index, value, resChan)
 	}
 
@@ -124,6 +123,8 @@ func (req *ServerForm) combineTry(){
 
 		result = append(result, res)
 	}
+
+	logs.Info("try 操作完成,ID:", req.ID, " 返回结果:", JSONToStr(result))
 	
 	// 如果不通过的话
 	if !isPass {
@@ -136,8 +137,6 @@ func (req *ServerForm) combineTry(){
 		// 执行并发提交
 		req.combineCommit()
 	}
-
-	fmt.Println("同步 try", result, "是否通过:", isPass)
 }
 
 // 执行单个请求操作, 可根据 taskType 来区分请求的包体
@@ -227,6 +226,7 @@ func (req *ServerForm) combineCommit(){
 	resChan := make(chan respBody, len(req.Task))
 	defer close(resChan)
 
+	// 装载合法数据的索引, 标明哪几条任务再执行,然后也是接收这几条任务的 channel,以免发生漏消息或者阻塞
 	var indexFilter []int
 	for index, value := range req.Task {
 		if value.CommitStatus != "done" {
@@ -243,7 +243,7 @@ func (req *ServerForm) combineCommit(){
 	// 将异步的数据导出
 	var result []respBody 
 
-	for i:= 0; i < len(req.Task); i++ {
+	for i:= 0; i < len(indexFilter); i++ {
 		res := <-resChan
 		if res.Status != 200 {
 			// 只要请求不成功就不能通过,但是还需要判断是否终止操作
@@ -262,7 +262,11 @@ func (req *ServerForm) combineCommit(){
 	logs.Error("当前事务状态:", req)
 
 	if isBreak {
-		logs.Error("执行中断操作操作")
+		logs.Info("执行中断操作操作,ID:", req.ID)
+		//  进入下一阶段
+		req.Step++
+		req.updateStatus()
+		req.combineBreak()
 		return
 	}
 
@@ -326,13 +330,25 @@ func (req *ServerForm) cancel(errMsg []respBody){
 	logs.Error("准备开始取消")
 	errStr := JSONToStr(errMsg)
 	db, _ := sql.Open("mysql", "root:123123@tcp(127.0.0.1:33060)/go?charset=utf8")
-	sql := "UPDATE rpc_ts SET payload=?, status=2, exec_num=?, update_at=?, error_info=? WHERE id=?"
+	sql := "UPDATE rpc_ts SET payload=?, status=20, exec_num=?, update_at=?, error_info=? WHERE id=?"
 	stmt, err := db.Prepare(sql)
 	checkErr(err)
 	_, err = stmt.Exec(req.toString(), req.ExecNum, time.Now().Unix(), errStr, req.ID)
 	checkErr(err)
 	logs.Debug("取消事务时插入数据库内容:",req.toString(),time.Now().Unix(),errStr,req.ID)
-	logs.Debug("此处应该向某处发送错误通知")
+	logs.Debug("此处应该向某处发送 [事务取消] 通知")
+}
+
+// 存在非正常取消操作
+func (req *ServerForm) crash(errMsg []respBody){
+	errStr := JSONToStr(errMsg)
+	db, _ := sql.Open("mysql", "root:123123@tcp(127.0.0.1:33060)/go?charset=utf8")
+	sql := "UPDATE rpc_ts SET payload=?, status=21, exec_num=?, update_at=?, error_info=? WHERE id=?"
+	stmt, err := db.Prepare(sql)
+	checkErr(err)
+	_, err = stmt.Exec(req.toString(), req.ExecNum, time.Now().Unix(), errStr, req.ID)
+	checkErr(err)
+	logs.Debug("此处应该向某处发送 [事务异常] 通知")
 }
 
 // 事务执行完成动作
@@ -346,6 +362,72 @@ func (req *ServerForm) success(){
 	logs.Debug("执行成功的操作完成")
 }
 
+// 插入MQ
+func (req *ServerForm) insertMQ() {
+	jsonStr := req.toString()
+
+	insertKey := fmt.Sprintf("ts_queue_%v_%v", req.ID, req.ExecNum)
+	// 向消息队列中发送消息
+	var mq MQService
+	mq.Send(insertKey,jsonStr)
+}
+
+// 执行中断事务的操作
+ func (req *ServerForm) combineBreak(){
+	logs.Debug("打印当前中断状态时的事务状态", req.toString())
+
+	resChan := make(chan respBody, len(req.Task))
+	defer close(resChan)
+
+	// 装载合法数据的索引, 标明哪几条任务再执行,然后也是接收这几条任务的 channel,以免发生漏消息或者阻塞
+	var indexFilter []int
+	for index, value := range req.Task {
+		if value.CommitStatus == "done" {
+			indexFilter = append(indexFilter, index)
+			// 单个执行取消操作
+			go execItem("cancel", index, value, resChan)
+		}
+	}
+
+	// 将异步的数据导出
+	var result []respBody 
+	// 判断整体的 cancel 是否通过(如果部分未通过则会重回队列)
+	isPass := true
+	// 判断是否产生需要终止整个事务的事件
+	isBreak := false
+	for i:= 0; i < len(indexFilter); i++ {
+		res := <-resChan
+		if res.Status != 200 {
+			// 当执行cancel 都出现错误的时候说明回滚不成功,
+			isPass = false
+			// 执行超时的则重回队列
+			if res.ErrorCode != 408 {
+				isBreak = true
+			}
+			req.Task[res.Index].CancelStatus = "false"
+		} else {
+			req.Task[res.Index].CancelStatus = "done"
+		}
+		result = append(result,res)
+	}
+
+	if isBreak {
+		// 当存在事务无法回滚的情况
+		req.crash(result)
+		return
+	}
+
+	if !isPass {
+		// 执行重回队列操作
+		logs.Debug("执行重回队列的操作 cancel step")
+		req.insertMQ()
+		return
+	}
+
+	// 全部正常回滚则关闭事务
+	req.cancel(result)
+	logs.Info("终止操作完毕!ID:", req.ID)
+ }
 
 
 // ==================================TOOLS===================================
@@ -400,7 +482,7 @@ func postClien(url string, jsonStr string) respBody {
 
 	body, _ := ioutil.ReadAll(resp.Body)
 
-	logs.Debug("post 请求返回内容:", string(body))
+	logs.Debug(url, "post 请求返回内容:", string(body))
 
 	if resp.StatusCode == 200 {
 		respForm := respBody{}
