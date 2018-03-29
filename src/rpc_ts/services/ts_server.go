@@ -158,18 +158,20 @@ func execItem(taskType string, index int,task ServerItem,  resultChan chan<- res
 	go func(task ServerItem, taskType string) {
 		start := time.Now()
 		var resp respBody
-		
+		var url string
 		switch taskType {
 		case "try":
-			url := fmt.Sprintf("%s/try", task.API)
+			url = fmt.Sprintf("%s/try", task.API)
 			resp = postClien(url, task.Try)
 		case "confirm":
-			url := fmt.Sprintf("%s/confirm", task.API)
+			url = fmt.Sprintf("%s/confirm", task.API)
 			resp = postClien(url, task.Confirm)
 		case "cancel":
-			url := fmt.Sprintf("%s/cancel", task.API)
+			url = fmt.Sprintf("%s/cancel", task.API)
 			resp = postClien(url, task.Cancel)
 		}
+		// 对返回内容打上 api 信息
+		resp.API = url
 		
 		end := time.Now()
 		exeTime := end.Sub(start).Nanoseconds() / 1000000
@@ -269,7 +271,9 @@ func (req *ServerForm) combineCommit(){
 		return
 	}
 
-	logs.Error("准备完成动作")
+	// 完成动作
+	logs.Info("准备完成动作")
+	req.success()
 
 	
 
@@ -319,18 +323,27 @@ func (req *ServerForm) updateStatus(){
 
 // 并行操作 try 不通过直接取消事务,
 func (req *ServerForm) cancel(errMsg []respBody){
-	logs.Info("准备开始取消",req)
+	logs.Error("准备开始取消")
 	errStr := JSONToStr(errMsg)
 	db, _ := sql.Open("mysql", "root:123123@tcp(127.0.0.1:33060)/go?charset=utf8")
-	sql := "UPDATE rpc_ts SET payload=?, status=2,exec_num=? ,update_at=?,error_info=? WHERE id=?"
+	sql := "UPDATE rpc_ts SET payload=?, status=2, exec_num=?, update_at=?, error_info=? WHERE id=?"
 	stmt, err := db.Prepare(sql)
 	checkErr(err)
 	_, err = stmt.Exec(req.toString(), req.ExecNum, time.Now().Unix(), errStr, req.ID)
 	checkErr(err)
-	logs.Debug("插入数据库内容:",req.toString(),time.Now().Unix(),errStr,req.ID)
-
-
+	logs.Debug("取消事务时插入数据库内容:",req.toString(),time.Now().Unix(),errStr,req.ID)
 	logs.Debug("此处应该向某处发送错误通知")
+}
+
+// 事务执行完成动作
+func (req *ServerForm) success(){
+	db, _ := sql.Open("mysql", "root:123123@tcp(127.0.0.1:33060)/go?charset=utf8")
+	sql := "UPDATE rpc_ts SET payload=?, status=2, exec_num=?, update_at=? WHERE id=?"
+	stmt, err := db.Prepare(sql)
+	checkErr(err)
+	_, err = stmt.Exec(req.toString(), req.ExecNum, time.Now().Unix(), req.ID)
+	checkErr(err)
+	logs.Debug("执行成功的操作完成")
 }
 
 

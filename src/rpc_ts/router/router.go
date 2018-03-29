@@ -18,67 +18,207 @@ func RegistRouter(r *gin.Engine) *gin.Engine {
 	// 接收执行事务的接口  Serial(串行)  Parallel(并行)
 	r.POST("/client", controllers.Client)
 
-	r.POST("/api/test/try", func(c *gin.Context){
-		var testForm struct{
-			Message string `json:"message"`
-			Type	string	`json:"type"`
-			Code	int		`json:"code"`
-			ErrorCode int	`json:"error_code"`
-			ErrorMessage string	`json:"error_message"`
-			Data string `json:"data"`
-		}
-		// 验证是否成功绑定
-		if c.BindJSON(&testForm) == nil {
-			testForm.Type = "try api"
-			testForm.Code = 200
-			testForm.ErrorCode = 0
-			testForm.ErrorMessage = "nothing wrong"
-			testForm.Data = "{\"message\": \"try\"}"
-			c.JSON(200, testForm)
-		} else {
-			// 处理失败时的返回
-			c.JSON(400, gin.H{
-				"error_code": 401,
-				"error_message": "get nothing",
-			})
-		}
-	})
-
-	r.POST("/api/test/confirm", func(c *gin.Context){
-		var testForm struct{
-			Message string `json:"message"`
-			Type	string
-		}
-		// 验证是否成功绑定
-		if c.BindJSON(&testForm) == nil {
-			testForm.Type = "confirm api"
-			c.JSON(200, testForm)
-		} else {
-			// 处理失败时的返回
-			c.JSON(400, gin.H{
-				"message" : "get nothing",
-			})
-		}
-	})
-
-	r.POST("/api/test/cancel", func(c *gin.Context){
-		var testForm struct{
-			Message string `json:"message"`
-			Type	string
-		}
-		// 验证是否成功绑定
-		if c.BindJSON(&testForm) == nil {
-			testForm.Type = "cancel api"
-			c.JSON(200, testForm)
-		} else {
-			// 处理失败时的返回
-			c.JSON(400, gin.H{
-				"message" : "get nothing",
-			})
-		}
-	})
+	r.POST("/api/test/try", trySuccess)
+	r.POST("/api/test/confirm", confirmSuccess)
+	r.POST("/api/test/cancel", cancelSuccess)
 
 
 
 	return r
+}
+
+// try成功
+func trySuccess(c *gin.Context){
+	var statusCode int
+	var errorCode int
+	var errorMsg string
+	statusCode = 200
+
+	var testForm struct{
+		Message string `json:"message"`
+		Type	string	`json:"type"`
+		Code	int		`json:"code"`
+		ErrorCode int	`json:"error_code"`
+		ErrorMessage string	`json:"error_message"`
+		Data string `json:"data"`
+	}
+	// 验证是否成功绑定
+	if c.BindJSON(&testForm) == nil {
+		testForm.Type = "try api"
+		testForm.Code = statusCode
+		testForm.ErrorCode = errorCode
+		testForm.ErrorMessage = errorMsg
+		testForm.Data = "{\"message\": \"try\"}"
+		c.JSON(200, testForm)
+	} else {
+		// 处理失败时的返回
+		c.JSON(400, gin.H{
+			"error_code": 401,
+			"error_message": "get nothing",
+		})
+	}
+}
+
+// try 失败
+func tryFault(c *gin.Context){
+	var statusCode int
+	var errorCode int
+	var errorMsg string
+	errorCode = 401
+	errorMsg = "something was wrong"
+
+	var testForm struct{
+		Message string `json:"message"`
+		Type	string	`json:"type"`
+		Code	int		`json:"code"`
+		ErrorCode int	`json:"error_code"`
+		ErrorMessage string	`json:"error_message"`
+		Data string `json:"data"`
+	}
+	// 验证是否成功绑定
+	if c.BindJSON(&testForm) == nil {
+		testForm.Type = "try api"
+		testForm.Code = statusCode
+		testForm.ErrorCode = errorCode
+		testForm.ErrorMessage = errorMsg
+		testForm.Data = "{\"message\": \"try\"}"
+		c.JSON(200, testForm)
+	} else {
+		// 处理失败时的返回
+		c.JSON(400, gin.H{
+			"error_code": 401,
+			"error_message": "get nothing",
+		})
+	}
+}
+
+// confirm 成功
+func confirmSuccess(c *gin.Context){
+	var statusCode int
+	var errorCode int
+	var errorMsg string
+	statusCode = 200
+
+	var testForm struct{
+		Message string `json:"message"`
+		Type	string	`json:"type"`
+		Code	int		`json:"code"`
+		ErrorCode int	`json:"error_code"`
+		ErrorMessage string	`json:"error_message"`
+		Data string `json:"data"`
+	}
+	// 验证是否成功绑定
+	if c.BindJSON(&testForm) == nil {
+		testForm.Type = "try api"
+		testForm.Code = statusCode
+		testForm.ErrorCode = errorCode
+		testForm.ErrorMessage = errorMsg
+		testForm.Data = "{\"message\": \"try\"}"
+		c.JSON(200, testForm)
+	} else {
+		// 处理失败时的返回
+		c.JSON(400, gin.H{
+			"error_code": 401,
+			"error_message": "get nothing",
+		})
+	}
+}
+
+// confirm 失败
+func confirmFault(c *gin.Context){
+	var statusCode int
+	var errorCode int
+	var errorMsg string
+	errorCode = 401
+	errorMsg = "something was wrong"
+
+	var testForm struct{
+		Message string `json:"message"`
+		Type	string	`json:"type"`
+		Code	int		`json:"code"`
+		ErrorCode int	`json:"error_code"`
+		ErrorMessage string	`json:"error_message"`
+		Data string `json:"data"`
+	}
+	// 验证是否成功绑定
+	if c.BindJSON(&testForm) == nil {
+		testForm.Type = "try api"
+		testForm.Code = statusCode
+		testForm.ErrorCode = errorCode
+		testForm.ErrorMessage = errorMsg
+		testForm.Data = "{\"message\": \"try\"}"
+		c.JSON(200, testForm)
+	} else {
+		// 处理失败时的返回
+		c.JSON(400, gin.H{
+			"error_code": 401,
+			"error_message": "get nothing",
+		})
+	}
+}
+
+
+func cancelSuccess(c *gin.Context){
+	var statusCode int
+	var errorCode int
+	var errorMsg string
+	statusCode = 200
+
+	var testForm struct{
+		Message string `json:"message"`
+		Type	string	`json:"type"`
+		Code	int		`json:"code"`
+		ErrorCode int	`json:"error_code"`
+		ErrorMessage string	`json:"error_message"`
+		Data string `json:"data"`
+	}
+	// 验证是否成功绑定
+	if c.BindJSON(&testForm) == nil {
+		testForm.Type = "try api"
+		testForm.Code = statusCode
+		testForm.ErrorCode = errorCode
+		testForm.ErrorMessage = errorMsg
+		testForm.Data = "{\"message\": \"try\"}"
+		c.JSON(200, testForm)
+	} else {
+		// 处理失败时的返回
+		c.JSON(400, gin.H{
+			"error_code": 401,
+			"error_message": "get nothing",
+		})
+	}
+}
+
+
+// cancel 失败
+func cancelFault(c *gin.Context){
+	var statusCode int
+	var errorCode int
+	var errorMsg string
+	errorCode = 401
+	errorMsg = "something was wrong"
+
+	var testForm struct{
+		Message string `json:"message"`
+		Type	string	`json:"type"`
+		Code	int		`json:"code"`
+		ErrorCode int	`json:"error_code"`
+		ErrorMessage string	`json:"error_message"`
+		Data string `json:"data"`
+	}
+	// 验证是否成功绑定
+	if c.BindJSON(&testForm) == nil {
+		testForm.Type = "try api"
+		testForm.Code = statusCode
+		testForm.ErrorCode = errorCode
+		testForm.ErrorMessage = errorMsg
+		testForm.Data = "{\"message\": \"try\"}"
+		c.JSON(200, testForm)
+	} else {
+		// 处理失败时的返回
+		c.JSON(400, gin.H{
+			"error_code": 401,
+			"error_message": "get nothing",
+		})
+	}
 }
