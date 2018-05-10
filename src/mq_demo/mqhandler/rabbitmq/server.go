@@ -10,12 +10,15 @@ const(
 	RabbitmqHost = "amqp://guest:guest@localhost:5672/"
 	QueueName = "hello"
 	ConsumerName = ""
+	Exchange = ""
 	Durable = false
 	DeleteWhenUnused = false
 	Exclusive = false
 	NoWait = false
 	AutoAck = true
 	NoLocal = false
+	Mandatory = false
+	Immediate = false
 )
 
 
@@ -34,12 +37,12 @@ func (rb Rabbitmq) Read(f func(jsonStr []byte)){
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		QueueName, // name
-		Durable,   // durable
+		QueueName, 			// name
+		Durable,   			// durable
 		DeleteWhenUnused,   // delete when unused
-		Exclusive,   // exclusive
-		NoWait,   // no-wait
-		nil,     // arguments
+		Exclusive,   		// exclusive
+		NoWait,   			// no-wait
+		nil,     			// arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 
@@ -47,7 +50,7 @@ func (rb Rabbitmq) Read(f func(jsonStr []byte)){
 		q.Name, 			// queue
 		ConsumerName,     	// consumer
 		AutoAck,   			// auto-ack
-		Exclusive,  			// exclusive
+		Exclusive,  		// exclusive
 		NoLocal,  			// no-local
 		NoWait,  			// no-wait
 		nil,    			// args
@@ -78,21 +81,21 @@ func (rb Rabbitmq) Send(key string,value string){
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		"hello", // name
-		false,   // durable
-		false,   // delete when unused
-		false,   // exclusive
-		false,   // no-wait
-		nil,     // arguments
+		QueueName, 			// name
+		Durable,   			// durable
+		DeleteWhenUnused,   // delete when unused
+		Exclusive,   		// exclusive
+		NoWait,   			// no-wait
+		nil,     			// arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 
 	body := value
 	err = ch.Publish(
-		"",     // exchange
-		q.Name, // routing key
-		false,  // mandatory
-		false,  // immediate
+		Exchange,     	// exchange
+		q.Name, 		// routing key
+		Mandatory,  	// mandatory
+		Immediate,  	// immediate
 		amqp.Publishing{
 			ContentType: "text/plain",
 			Body:        []byte(body),
