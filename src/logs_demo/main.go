@@ -4,6 +4,7 @@ import(
 	logs "logs_demo/loghandler"
 	"fmt"
 	"time"
+	"math/rand"
 )
 
 type testInfo struct{
@@ -18,6 +19,7 @@ func main(){
 		200,
 	}
 	for i:=0;i<10;i++ {
+		logs.SetUniqueID(rand.Int63n(100))
 		logs.Debug(info)
 		logs.Info(info)
 		logs.Warn(info)

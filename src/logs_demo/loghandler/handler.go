@@ -3,7 +3,7 @@ package loghandler
 import(
 	"github.com/astaxie/beego/logs"
 	"encoding/json"
-	"fmt"
+	"fmt"	
 )
 // log 的一些设置
 const (
@@ -17,6 +17,7 @@ type LogInfoTemplate struct{
 	Data interface{}
 }
 
+// UniqueID log 的唯一 id
 var uniqueID int64
 
 // log 的基础设置都在这里了
@@ -29,13 +30,11 @@ func init(){
 	logs.SetLogFuncCallDepth(4)
 	// 异步 chan 的大小为1k
 	logs.Async(1e3)
-
-	uniqueID = genUniqueID()
 }
 
-// 生成 uniqueID
-func genUniqueID() int64{
-	return 23333333333
+// SetUniqueID 生成 uniqueID
+func SetUniqueID(id int64){
+	uniqueID = id
 }
 
 // GetUniqueID 统一获取 uid
