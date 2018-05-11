@@ -2,9 +2,11 @@ package main
 
 import(
 	logs "logs_demo/loghandler"
+	"logs_demo/uniqueid"
 	"fmt"
 	"time"
 	"math/rand"
+	"os"
 )
 
 type testInfo struct{
@@ -13,6 +15,15 @@ type testInfo struct{
 }
 
 func main(){
+	var i int64
+	i = 1
+	worker, _ := uniqueid.NewWorker(i)
+	id := worker.GetID()
+	fmt.Printf("%d %d\n", id, int64(id))
+	os.Exit(0)
+
+
+
 	t1 := time.Now()
 	info := testInfo{
 		"this is msg",
