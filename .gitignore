@@ -7,3 +7,4 @@ pkg/*
 /src/*/vendor/*/
 src/google.golang.org/*
 src/rpc_ts/logs/*
+src/logs_demo/logs/rpc_ts.log
