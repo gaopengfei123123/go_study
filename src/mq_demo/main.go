@@ -14,18 +14,20 @@ func main(){
 }
 
 func tt(jsonStr []byte){
-	time.Sleep(time.Second * 1)
 	fmt.Println("already in listenning mq: ", string(jsonStr))
 }
 
 
 func sendSomething(handler mq.MQ){
 	time.Sleep(time.Second * 1)
-	handler.Send("testKey1", "testValue1")
+
+	handler.Delay("testKey1", "testValue1", "3000")
 
 	time.Sleep(time.Second * 1)
-	handler.Send("testKey2", "testValue2")
+	handler.Delay("testKey2", "testValue2", "4000")
 
 	time.Sleep(time.Second * 1)
-	handler.Send("testKey3", "testValue3")
+	handler.Delay("testKey3", "testValue3", "5000")
+
+	handler.Delay("delayKey1", "this is delay key233", "6000")
 }
