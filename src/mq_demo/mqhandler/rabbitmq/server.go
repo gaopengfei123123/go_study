@@ -70,6 +70,11 @@ func (rb Rabbitmq) Read(f func(jsonStr []byte)){
 	<-forever
 }
 
+// Delay 发送延时消息
+func (rb Rabbitmq) Delay(key string,value string){
+
+}
+
 // Send 向队列发送的方法
 func (rb Rabbitmq) Send(key string,value string){
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")

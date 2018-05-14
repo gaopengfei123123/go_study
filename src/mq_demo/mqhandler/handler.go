@@ -16,4 +16,5 @@ type MQService struct{
 type MQ interface{
 	Read(func(jsonStr []byte))
 	Send(key string,value string)
+	Delay(key string,value string)
 }
