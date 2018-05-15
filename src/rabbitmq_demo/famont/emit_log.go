@@ -24,6 +24,7 @@ func main() {
 	defer ch.Close()
 
 	body := bodyFrom(os.Args)
+	// 将消息发送到延时队列上
 	err = ch.Publish(
 		"", 				// exchange 这里为空则不选择 exchange
 		"test_delay",     	// routing key
