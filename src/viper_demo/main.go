@@ -9,29 +9,31 @@ import (
 	// "os"
 )
 
-
-type Config struct{
-	Host host
+// Config 配置文件的结构
+type Config struct {
+	Host      host
 	Datastore datastore
 }
 
-type host struct{
+type host struct {
 	Address string `json:"address"`
-	Port	int `json:"port"`
-	Host	string `json:"host"`
+	Port    int    `json:"port"`
+	Host    string `json:"host"`
 }
 
-type datastore struct{
-	Metric 		host	
-	Warehouse 	host
+type datastore struct {
+	Metric    host
+	Warehouse host
 }
 
 var (
-	Conf  *Config
+	// Conf 配置文件所在的变量
+	Conf     *Config
 	confPath string
 )
 
-func InitConfig() (err error){
+// InitConfig 初始化配置
+func InitConfig() (err error) {
 	Conf = NewConfig()
 
 	viper.SetConfigName("config")
@@ -39,20 +41,21 @@ func InitConfig() (err error){
 	viper.SetConfigType("json")
 	err = viper.ReadInConfig()
 	if err != nil {
-		panic(fmt.Errorf("Fatal error config file : %s \n", err))
+		panic(fmt.Errorf("fatal error config file : %s ", err))
 	}
 
 	if err := viper.Unmarshal(&Conf); err != nil {
-		panic(fmt.Errorf("unable to decode into structL %s \n", err))
+		panic(fmt.Errorf("unable to decode into structL %s ", err))
 	}
 	return nil
 }
 
-func NewConfig() *Config{
+// NewConfig 生成一个新的配置文件
+func NewConfig() *Config {
 	return &Config{}
 }
 
-func main(){
+func main() {
 	InitConfig()
 	fmt.Println("hello")
 	fmt.Println("host address:", viper.Get("datastore.metric.host"))
