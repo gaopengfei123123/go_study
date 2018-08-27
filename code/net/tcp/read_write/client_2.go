@@ -1,22 +1,22 @@
 package main
 
-import(
+import (
+	"fmt"
 	"log"
 	"net"
-	"fmt"
 	"os"
 )
 
-func main(){
+func main() {
 	if len(os.Args) <= 1 {
-		fmt.Println("usage: go run client2.go YOUR_CONTENT")
+		fmt.Println("usage: go run client_2.go hello")
 		return
 	}
 
 	log.Println("start dial...")
-	conn, err := net.Dial("tcp",":8899")
+	conn, err := net.Dial("tcp", ":8899")
 	if err != nil {
-		log.Println("error: " , err)
+		log.Println("error: ", err)
 		return
 	}
 
