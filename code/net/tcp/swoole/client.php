@@ -1,7 +1,12 @@
 <?php
 $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 $client->on("connect", function($cli) {
-    $cli->send("hello world\n");
+    $data = [
+        'route' => 'index/test',
+        'data' => 'hello'
+    ];
+    echo 'send ' . json_encode($data);
+    $cli->send(json_encode($data) . "\n");
 });
 $client->on("receive", function($cli, $data){
     echo "received: {$data}\n";
