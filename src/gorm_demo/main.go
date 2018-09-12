@@ -16,7 +16,7 @@ var db *gorm.DB
 type User struct {
 	ID           int    `gorm:"primary_key"`
 	OpenID       string `gorm:"type:varchar(32);not null;index:idx_open"`
-	SyUID        int    `gorm:"column:u_id;type:bigint(20);not null"`
+	SyUID        int    `gorm:"column:sy_uid;type:bigint(20);not null"`
 	PasswordSalt string `gorm:"type:varchar(32);not null"`
 	Info         Info   `gorm:"foreignkey:ID;AssociationForeignKey:ID"`
 	Tmps         []Tmp  `gorm:"foreignkey:UID"`
@@ -54,8 +54,8 @@ type Demo struct {
 }
 
 func main() {
-	// conf := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", USER, PASSWORD, HOST, PORT, DBNAME)
-	conf := "root:123123@tcp(127.0.0.1:33060)/db_open?charset=utf8&parseTime=True&loc=Local"
+	conf := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local", USER, PASSWORD, HOST, PORT, DBNAME)
+	// conf := "root:123123@tcp(127.0.0.1:33060)/db_open?charset=utf8&parseTime=True&loc=Local"
 
 	db, err := gorm.Open("mysql", conf)
 	defer db.Close()
@@ -71,14 +71,14 @@ func main() {
 	// }
 
 	// // 新增数据
-	// user := &User{
-	// 	OpenID: "233asdfasdfads",
-	// }
-	// if err := db.Create(user).Error; err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	fmt.Println("新增数据")
-	// }
+	user := &User{
+		OpenID: "233asdfasdfads233",
+	}
+	if err := db.Create(user).Error; err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("新增数据")
+	}
 
 	// // 查找数据
 	// var u User
@@ -99,13 +99,13 @@ func main() {
 	// db.Debug().Model(&u).Related(&u.Tmps, "UID")
 	// fmt.Println(u)
 
-	// 使用关联模式
-	var u User
-	db.Debug().First(&u, 164)
-	// 这里的关键点就在于关联的 Model 需要是一个实体, 有记录的 struct, 然后才能查找对应的数值
-	db.Debug().Model(&u).Association("Tmps").Find(&u.Tmps)
-	db.Debug().Model(&u).Association("Info").Find(&u.Info)
-	fmt.Println(u)
+	// // 使用关联模式
+	// var u User
+	// db.Debug().First(&u, 164)
+	// // 这里的关键点就在于关联的 Model 需要是一个实体, 有记录的 struct, 然后才能查找对应的数值
+	// db.Debug().Model(&u).Association("Tmps").Find(&u.Tmps)
+	// db.Debug().Model(&u).Association("Info").Find(&u.Info)
+	// fmt.Println(u)
 
 	// var users []Users
 	// db.Debug().Preload("Info", "id = ?", "id").Limit(3).Find(&users)
@@ -118,6 +118,11 @@ func main() {
 // TableName 指定了这个 struct 依赖的表名
 func (u User) TableName() string {
 	return "tb_u_user"
+}
+
+func (u *User) AfterCreate() (err error) {
+	fmt.Println("插入数据后执行")
+	return
 }
 
 func (i Info) TableName() string {
