@@ -6,11 +6,13 @@ import (
 	// "time"
 )
 
+// HelloService xxx
 type HelloService struct {
 	Hello    func(string) (string, error)
 	CallBack func(module, class, method string, args interface{}) (interface{}, error) `name:"baseServer_callBack"`
 }
 
+// BaseService xxx
 type BaseService struct {
 	Callback func(module, class, method string, args map[string]interface{}) (interface{}, error) `name:"baseServer_callBack"`
 }
