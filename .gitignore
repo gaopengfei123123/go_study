@@ -10,3 +10,4 @@ src/rpc_ts/logs/*
 src/logs_demo/logs/rpc_ts.log
 *-server/
 .idea
+src/sy*
