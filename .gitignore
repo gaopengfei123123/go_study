@@ -2,6 +2,7 @@
 src/github.com/*
 src/sourcegraph.com/*
 src/gopcp.v2/*
+src/golang.org/*
 bin/*
 pkg/*
 /src/*/vendor/*/
