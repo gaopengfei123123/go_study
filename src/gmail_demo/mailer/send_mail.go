@@ -28,13 +28,13 @@ func init() {
 		Host:     "smtp.exmail.qq.com",
 		Port:     465,
 		Password: "xxx",
-		Username: "gaopengfei@soyoung.com",
+		Username: "gaopengfei@xxx.com",
 	}
 
 	sendMail = SendMail{
-		From: []string{"gaopengfei@soyoung.com"},
-		CC:   []string{"gaopengfei@soyoung.com"},
-		To:   []string{"5173180@qq.com"},
+		From: []string{"gaopengfei@xxx.com"},
+		CC:   []string{"gaopengfei@xxx.com"},
+		To:   []string{"xxx@qq.com"},
 	}
 }
 
